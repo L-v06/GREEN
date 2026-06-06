@@ -15,7 +15,7 @@ guild_id = int(os.getenv('SERVER_ID'))
 intents = discord.Intents.all()
 client = commands.Bot(command_prefix=':', intents=intents)
 
-caminho_pasta = "C:/Users/luiza/Downloads/Green/Cogs"
+caminho_pasta = os.path.join(os.path.dirname(__file__), "Cogs")
 sys.path.append(caminho_pasta)
 
 
