@@ -1,6 +1,6 @@
 ## GREEN
 
-🟢 Green Bot — Setup Guide
+🟢 Green Bot — Setup Guide - ONLY FOR THE FIRST TIME 
 
 A Discord bot for logging and tracking Avalon game sessions.
 No installations needed — everything runs directly on GitHub!
@@ -41,7 +41,7 @@ At the bottom of the screen you'll see a Terminal tab. Click on it and type:
 pip install -r requirements.txt
 Press Enter and wait for it to finish. 
 
-# Step 4 — Run the bot
+# Step 4 — Run the bot           -- AAL THE OTHER TIMES YOU WILL ONLY NEES THIS 
 In the same terminal, type:
 python main.py
 
