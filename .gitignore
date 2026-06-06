@@ -6,3 +6,20 @@ green_credentials.json
 
 ids.txt
 players_ids.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs
+*.log
+
+# VS Code / editor
+.vscode/
+.idea/
+
+
+venv/
+.venv/
+env/
