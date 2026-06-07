@@ -191,9 +191,9 @@ def _fetch_player_stats(nome: str) -> dict:
     pagina.update_acell("A2", nome)
     time.sleep(2)
 
-    dados = pagina.get("A1:J47")
+    dados = pagina.get("A1:J55")
 
-    dados_roles = pagina.get("A19:AJ20")
+    dados_roles = pagina.get("A24:AJ25")
     roles_played = {}
     if len(dados_roles) >= 2:
         nomes_roles = dados_roles[0]
@@ -210,80 +210,97 @@ def _fetch_player_stats(nome: str) -> dict:
         "evil_games_won":           _cell(dados, "D3"),
         "good_games_lost":          _cell(dados, "D4"),
         "evil_games_lost":          _cell(dados, "D5"),
+        "Gawain Good lost":         _cell(dados, "D6"),
+        "Gawain Evil lost":         _cell(dados, "D7"),
+
+
 
         "gawain_games_won":         _cell(dados, "F2"),
         "nimue_games_won":          _cell(dados, "F3"),
         "gawain_games_lost":        _cell(dados, "F4"),
         "nimue_games_lost":         _cell(dados, "F5"),
+        "Nimue Good Lost":          _cell(dados, "F6"),
+        "Nimue Evil Lost":          _cell(dados, "F7"),
 
-        "total_games_played":       _cell(dados, "F6"),
+
+
+        "total_games_played":       _cell(dados, "F8"),
 
         "good_role_won_most":       _cell(dados, "H2"),
         "evil_role_won_most":       _cell(dados, "H3"),
         "good_role_lost_most":      _cell(dados, "H4"),
         "evil_role_lost_most":      _cell(dados, "H5"),
+        "Nimue Win Good":           _cell(dados, "H6"),
+        "Nimue Win Evil":           _cell(dados, "H7"),
 
         # --- DUO STATS ---
-        "duo_good_games_won":       _cell(dados, "D9"),
-        "duo_evil_games_won":       _cell(dados, "D10"),
-        "duo_good_games_lost":      _cell(dados, "D11"),
-        "duo_evil_games_lost":      _cell(dados, "D12"),
+        "duo_good_games_won":       _cell(dados, "D12"),
+        "duo_evil_games_won":       _cell(dados, "D13"),
+        "duo_good_games_lost":      _cell(dados, "D14"),
+        "duo_evil_games_lost":      _cell(dados, "D15"),
+        "duo_gawain Good lost":     _cell(dados, "D16"),
+        "duo_gawain Evil lost":     _cell(dados, "D17"),
 
-        "duo_gawain_games_won":     _cell(dados, "F9"),
-        "duo_nimue_games_won":      _cell(dados, "F10"),
-        "duo_gawain_games_lost":    _cell(dados, "F11"),
-        "duo_nimue_games_lost":     _cell(dados, "F12"),
+        "duo_gawain_games_won":     _cell(dados, "F12"),
+        "duo_nimue_games_won":      _cell(dados, "F13"),
+        "duo_gawain_games_lost":    _cell(dados, "F14"),
+        "duo_nimue_games_lost":     _cell(dados, "F15"),
+        "duo_nimue Good Lost":      _cell(dados, "F16"),
+        "duo_nimue Evil Lost":      _cell(dados, "F17"),
 
-        "duo_good_role_won_most":   _cell(dados, "H9"),
-        "duo_evil_role_won_most":   _cell(dados, "H10"),
-        "duo_good_role_lost_most":  _cell(dados, "H11"),
-        "duo_evil_role_lost_most":  _cell(dados, "H12"),
 
-        "duo_good_win_ratio":       _cell(dados, "J9"),
-        "duo_evil_win_ratio":       _cell(dados, "J10"),
-        "duo_good_loss_ratio":      _cell(dados, "J11"),
-        "duo_evil_loss_ratio":      _cell(dados, "J12"),
+        "duo_good_role_won_most":   _cell(dados, "H12"),
+        "duo_evil_role_won_most":   _cell(dados, "H13"),
+        "duo_good_role_lost_most":  _cell(dados, "H14"),
+        "duo_evil_role_lost_most":  _cell(dados, "H15"),
+        "duo_nimue Win Good":       _cell(dados, "H16"),
+        "duo_nimue Win Evil":       _cell(dados, "H17"),
+
+        "duo_good_win_ratio":       _cell(dados, "J12"),
+        "duo_evil_win_ratio":       _cell(dados, "J13"),
+        "duo_good_loss_ratio":      _cell(dados, "J14"),
+        "duo_evil_loss_ratio":      _cell(dados, "J15"),
 
         # --- GM STATS ---
-        "gm_single":                _cell(dados, "C16"),
-        "gm_duo":                   _cell(dados, "D16"),
-        "gm_triple":                _cell(dados, "E16"),
-        "gm_solo":                  _cell(dados, "F16"),
-        "gm_pairs":                 _cell(dados, "G16"),
-        "gm_mixed":                 _cell(dados, "H16"),
-        "total_games_gmed":         _cell(dados, "I16"),
+        "gm_single":                _cell(dados, "C21"),
+        "gm_duo":                   _cell(dados, "D21"),
+        "gm_triple":                _cell(dados, "E21"),
+        "gm_solo":                  _cell(dados, "F21"),
+        "gm_pairs":                 _cell(dados, "G21"),
+        "gm_mixed":                 _cell(dados, "H21"),
+        "total_games_gmed":         _cell(dados, "I21"),
 
         # --- VOTES ---
-        "death_toll":               _cell(dados, "C23"),
-        "correct_vote_ratio":       _cell(dados, "E23"),
-        "incorrect_vote_ratio":     _cell(dados, "G23"),
-        "how_many_times_voted":     _cell(dados, "I23"),
-        "correct_votes":            _cell(dados, "E26"),
-        "incorrect_votes":          _cell(dados, "G26"),
+        "death_toll":               _cell(dados, "C28"),
+        "correct_vote_ratio":       _cell(dados, "E28"),
+        "incorrect_vote_ratio":     _cell(dados, "G28"),
+        "how_many_times_voted":     _cell(dados, "I28"),
+        "correct_votes":            _cell(dados, "E31"),
+        "incorrect_votes":          _cell(dados, "G31"),
 
         # --- DATES ---
-        "date_started_playing":     _cell(dados, "C26"),
-        "date_last_played":         _cell(dados, "I26"),
-        "everyone_wins_games":      _cell(dados, "E29"),
+        "date_started_playing":     _cell(dados, "C31"),
+        "date_last_played":         _cell(dados, "I31"),
+        "everyone_wins_games":      _cell(dados, "E34"),
 
         # --- ROLES ---
-        "role_played_most":         _cell(dados, "C29"),
-        "role_played_least":        _cell(dados, "C32"),
-        "role_last_played":         _cell(dados, "I29"),
-        "good_role_played_most":    _cell(dados, "C35"),
-        "evil_role_played_most":    _cell(dados, "C38"),
+        "role_played_most":         _cell(dados, "C34"),
+        "role_played_least":        _cell(dados, "C37"),
+        "role_last_played":         _cell(dados, "I34"),
+        "good_role_played_most":    _cell(dados, "C40"),
+        "evil_role_played_most":    _cell(dados, "C43"),
 
         # --- STREAKS ---
-        "last_date_evil":           _cell(dados, "C41"),
-        "last_date_good":           _cell(dados, "C44"),
-        "evil_streak":              _cell(dados, "E41"),
-        "good_streak":              _cell(dados, "E44"),
-        "last_evil_role":           _cell(dados, "G41"),
-        "last_good_role":           _cell(dados, "G44"),
-        "longest_evil_streak":      _cell(dados, "I41"),
-        "longest_good_streak":      _cell(dados, "I44"),
-        "longest_game_streak":      _cell(dados, "C47"),
-        "current_game_streak":      _cell(dados, "E47"),
+        "last_date_evil":           _cell(dados, "C46"),
+        "last_date_good":           _cell(dados, "C49"),
+        "evil_streak":              _cell(dados, "E46"),
+        "good_streak":              _cell(dados, "E49"),
+        "last_evil_role":           _cell(dados, "G46"),
+        "last_good_role":           _cell(dados, "G49"),
+        "longest_evil_streak":      _cell(dados, "I46"),
+        "longest_good_streak":      _cell(dados, "I49"),
+        "longest_game_streak":      _cell(dados, "C52"),
+        "current_game_streak":      _cell(dados, "E52"),
 
         # --- ROLES PLAYED ---
         "roles_played":             roles_played,
