@@ -219,8 +219,8 @@ def _fetch_player_stats(nome: str) -> dict:
         "nimue_games_won":          _cell(dados, "F3"),
         "gawain_games_lost":        _cell(dados, "F4"),
         "nimue_games_lost":         _cell(dados, "F5"),
-        "Nimue Good Lost":          _cell(dados, "F6"),
-        "Nimue Evil Lost":          _cell(dados, "F7"),
+        "nimue_good_lost":          _cell(dados, "F6"),
+        "nimue_evil_lost":          _cell(dados, "F7"),
 
 
 
