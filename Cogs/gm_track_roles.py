@@ -1,15 +1,86 @@
-# gm_track_role.py
-
 import json
 import discord
 from discord.ext import commands
 from discord import app_commands
+from discord.ui import View, Button, Select
 from utils_config import GUILD_ID, ROUND_TABLE_ID, _fuzzy_match_name_local
 from utils_sheets import nomes, get_player_stats
 
-# Load the mapping from Discord user ID (as string) to player name (as typed)
 with open("players_ids.json", "r", encoding="utf-8") as f:
-    PLAYERS_IDS = json.load(f)  # format: {"discord_user_id_str": "PlayerNick"}
+    PLAYERS_IDS = json.load(f)
+
+
+class PaginatorView(View):
+    def __init__(self, embeds: list, author_id: int, timeout=120):
+        super().__init__(timeout=timeout)
+        self.embeds = embeds
+        self.current_page = 0
+        self.total_pages = len(embeds)
+        self.author_id = author_id
+
+        # Previous / Next buttons
+        self.prev_button = Button(emoji="⬅️", style=discord.ButtonStyle.secondary)
+        self.prev_button.callback = self.previous_page
+        self.add_item(self.prev_button)
+
+        self.next_button = Button(emoji="➡️", style=discord.ButtonStyle.secondary)
+        self.next_button.callback = self.next_page
+        self.add_item(self.next_button)
+
+        # Dropdown menu for page selection (max 25 options)
+        options = []
+        for i, embed in enumerate(self.embeds):
+            if i == 0:
+                label = "📋 Summary"
+            else:
+                # Extract player name from embed title (format "📊 PlayerName")
+                title = embed.title
+                player_name = title.replace("📊", "").strip()
+                label = f"{player_name} (page {i+1})"
+            options.append(discord.SelectOption(label=label, value=str(i)))
+        self.select_menu = Select(placeholder="Jump to page...", options=options, row=1)
+        self.select_menu.callback = self.jump_to_page
+        self.add_item(self.select_menu)
+
+    async def update_message(self, interaction: discord.Interaction):
+        embed = self.embeds[self.current_page]
+        self.prev_button.disabled = (self.current_page == 0)
+        self.next_button.disabled = (self.current_page == self.total_pages - 1)
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    async def previous_page(self, interaction: discord.Interaction):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message("❌ You are not the command author.", ephemeral=True)
+            return
+        if self.current_page > 0:
+            self.current_page -= 1
+            await self.update_message(interaction)
+
+    async def next_page(self, interaction: discord.Interaction):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message("❌ You are not the command author.", ephemeral=True)
+            return
+        if self.current_page < self.total_pages - 1:
+            self.current_page += 1
+            await self.update_message(interaction)
+
+    async def jump_to_page(self, interaction: discord.Interaction):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message("❌ You are not the command author.", ephemeral=True)
+            return
+        selected = int(self.select_menu.values[0])
+        if 0 <= selected < self.total_pages:
+            self.current_page = selected
+            await self.update_message(interaction)
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        try:
+            await self.message.edit(view=self)
+        except:
+            pass
+
 
 class gm_track_role(commands.Cog):
     def __init__(self, client):
@@ -17,7 +88,7 @@ class gm_track_role(commands.Cog):
 
     @app_commands.command(
         name="gm_track_role",
-        description="Track last role and streaks of a player based on message reactions"
+        description="Show last role and streaks for each player who reacted to a sign‑up message"
     )
     @app_commands.checks.has_role(1126393102291185744)  # role ID
     @app_commands.default_permissions(administrator=True)
@@ -26,34 +97,22 @@ class gm_track_role(commands.Cog):
         await interaction.response.defer()
         sign_up_message_id = int(sign_up_message_id)
         target_channel = self.client.get_channel(int(ROUND_TABLE_ID))
-        if target_channel is None:
-            await interaction.followup.send(
-                "Could not find the round table channel. Check ROUND_TABLE_ID.",
-                ephemeral=True
-            )
+        if not target_channel:
+            await interaction.followup.send("❌ Round Table channel not found. Check ROUND_TABLE_ID.", ephemeral=True)
             return
 
         try:
             message = await target_channel.fetch_message(sign_up_message_id)
         except discord.NotFound:
-            await interaction.followup.send(
-                "Message not found. Verify the ID and that it exists in the round table channel.",
-                ephemeral=True
-            )
+            await interaction.followup.send("❌ Message not found. Verify the ID.", ephemeral=True)
             return
         except discord.Forbidden:
-            await interaction.followup.send(
-                "I don't have permission to read that message.",
-                ephemeral=True
-            )
+            await interaction.followup.send("❌ I don't have permission to read that message.", ephemeral=True)
             return
 
         reactions = message.reactions
         if not reactions:
-            await interaction.followup.send(
-                "This message has no reactions.",
-                ephemeral=True
-            )
+            await interaction.followup.send("❌ This message has no reactions.", ephemeral=True)
             return
 
         # Collect unique human users from all reactions
@@ -64,39 +123,23 @@ class gm_track_role(commands.Cog):
                     all_user_ids.add(user.id)
 
         if not all_user_ids:
-            await interaction.followup.send(
-                "No human users reacted to this message.",
-                ephemeral=True
-            )
+            await interaction.followup.send("❌ No human users reacted to this message.", ephemeral=True)
             return
 
-        
-        print(f"[GM_TRACK] Found {len(all_user_ids)} unique human reactors.")
-
-        # Map Discord IDs to canonical player names (using fuzzy matching)
+        # Map Discord IDs to canonical player names (via players_ids.json)
         players = []
-        unknown_ids = []
         for uid in all_user_ids:
-            uid_str = str(uid)
-            nick = PLAYERS_IDS.get(uid_str)
+            nick = PLAYERS_IDS.get(str(uid))
             if not nick:
-                unknown_ids.append(uid)
                 continue
-
-            matched_name = _fuzzy_match_name_local(nick, nomes)
-            if matched_name is None:
-                await interaction.followup.send(
-                    f"Could not find a close match for **{nick}** (ID: {uid}) in the players list. "
-                    "Check `players_ids.json` or the sheet names.",
-                    ephemeral=True
-                )
-                return
-            players.append(matched_name)
+            matched = _fuzzy_match_name_local(nick, nomes)
+            if matched:
+                players.append(matched)
 
         if not players:
             await interaction.followup.send(
-                f"None of the reacting users are registered in `players_ids.json`. "
-                f"Unknown IDs: {unknown_ids}",
+                "❌ None of the reacting users are registered in `players_ids.json`. "
+                "Check your mapping or run `/update` first.",
                 ephemeral=True
             )
             return
@@ -107,136 +150,78 @@ class gm_track_role(commands.Cog):
             stats = get_player_stats(name)
             if stats is None:
                 await interaction.followup.send(
-                    f"Player **{name}** not found in stats cache. Run `/update` first.",
+                    f"❌ Stats for **{name}** not loaded. Run `/update` first.",
                     ephemeral=True
                 )
                 return
             players_stats.append((name, stats))
 
-        # Sort players alphabetically for consistent pagination order
-        players_stats.sort(key=lambda x: x[0].lower())
+        players_stats.sort(key=lambda x: x[0].lower())  # alphabetical order
 
-        # Build embeds with page numbers in footer
-        embeds = []
-        total_players = len(players_stats)
-        for idx, (name, stats) in enumerate(players_stats):
-            embed = self._build_player_embed(name, stats, idx + 1, total_players)
+        # ------------------------------------------------------------------
+        # PAGE 1 – SUMMARY (only player names and page numbers)
+        # ------------------------------------------------------------------
+        summary_lines = []
+        for idx, (name, _) in enumerate(players_stats, start=2):  # page 1 = summary, players start at 2
+            summary_lines.append(f"• **{name}** → page {idx}")
+
+        summary_embed = discord.Embed(
+            title="📋 Player Summary",
+            color=discord.Color.gold(),
+            description="\n".join(summary_lines) if summary_lines else "No players found."
+        )
+        summary_embed.set_footer(text="Use the buttons or dropdown menu below to navigate")
+
+        # ------------------------------------------------------------------
+        # INDIVIDUAL PAGES (one embed per player)
+        # ------------------------------------------------------------------
+        embeds = [summary_embed]
+        for name, stats in players_stats:
+            embed = discord.Embed(
+                title=f"📊 {name}",
+                color=discord.Color.blue(),
+                description=f"Last played: **{stats.get('date_last_played', 'Unknown')}**"
+            )
+            # Good streak
+            good_streak = stats.get('good_streak', 0)
+            last_good_role = stats.get('last_good_role', 'None')
+            last_good_date = stats.get('last_date_good', 'Unknown')
+            embed.add_field(
+                name="✨ Good Streak",
+                value=f"**{good_streak}** games\nLast role: {last_good_role} ({last_good_date})",
+                inline=True
+            )
+            # Evil streak
+            evil_streak = stats.get('evil_streak', 0)
+            last_evil_role = stats.get('last_evil_role', 'None')
+            last_evil_date = stats.get('last_date_evil', 'Unknown')
+            embed.add_field(
+                name="💀 Evil Streak",
+                value=f"**{evil_streak}** games\nLast role: {last_evil_role} ({last_evil_date})",
+                inline=True
+            )
             embeds.append(embed)
 
-        await self._paginate_embeds(interaction, embeds)
+        # Send with navigation view
+        view = PaginatorView(embeds, interaction.user.id, timeout=120)
+        await interaction.followup.send(embed=embeds[0], view=view)
+        # Store message reference in view for timeout cleanup (optional)
+        try:
+            msg = await interaction.original_response()
+            view.message = msg
+        except:
+            pass
 
-    def _build_player_embed(self, name: str, stats: dict, page_num: int, total_pages: int) -> discord.Embed:
-        embed = discord.Embed(
-            title=f"📊 {name}",
-            color=discord.Color.blue(),
-            description=f"Last play date: **{stats.get('date_last_played', 'Unknown')}**"
-        )
-
-        # Good streak
-        good_streak = stats.get('good_streak', 0)
-        last_good_role = stats.get('last_good_role', 'None')
-        last_good_date = stats.get('last_date_good', 'Unknown')
-        embed.add_field(
-            name="✨ Good Streak",
-            value=f"**{good_streak}** games\nLast role: {last_good_role} ({last_good_date})",
-            inline=True
-        )
-
-        # Evil streak
-        evil_streak = stats.get('evil_streak', 0)
-        last_evil_role = stats.get('last_evil_role', 'None')
-        last_evil_date = stats.get('last_date_evil', 'Unknown')
-        embed.add_field(
-            name="💀 Evil Streak",
-            value=f"**{evil_streak}** games\nLast role: {last_evil_role} ({last_evil_date})",
-            inline=True
-        )
-
-        # Footer shows current player and total players
-        embed.set_footer(text=f"Player {page_num} of {total_pages}")
-        return embed
-
-    async def _paginate_embeds(self, interaction: discord.Interaction, embeds: list):
-        if not embeds:
-            await interaction.followup.send("No data to display.", ephemeral=True)
-            return
-
-        current_page = 0
-        total_pages = len(embeds)
-        msg = await interaction.followup.send(embed=embeds[current_page])
-
-        if total_pages == 1:
-            return
-
-        await msg.add_reaction("⬅️")
-        await msg.add_reaction("➡️")
-
-        def check(reaction, user):
-            return (
-                user == interaction.user
-                and str(reaction.emoji) in ("⬅️", "➡️")
-                and reaction.message.id == msg.id
-            )
-
-        while True:
-            try:
-                reaction, user = await self.client.wait_for(
-                    "reaction_add", timeout=60.0, check=check
-                )
-                if str(reaction.emoji) == "➡️":
-                    current_page = (current_page + 1) % total_pages
-                elif str(reaction.emoji) == "⬅️":
-                    current_page = (current_page - 1) % total_pages
-                await msg.edit(embed=embeds[current_page])
-                await msg.remove_reaction(reaction, user)
-            except TimeoutError:
-                try:
-                    await msg.clear_reactions()
-                except:
-                    pass
-                break
-            except Exception:
-                break
-
-    # ------------------------------------------------------------
-    # ERROR HANDLER – captura MissingRole e outros erros
-    # ------------------------------------------------------------
     @track_role.error
     async def track_role_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
-        # 1. Missing required role (has_role)
         if isinstance(error, app_commands.MissingRole):
             role_id = error.missing_role
             await interaction.response.send_message(
-                f" You need the <@&{role_id}> role to use `/gm_track_role`.",
+                f"❌ You need the <@&{role_id}> role to use `/gm_track_role`.",
                 ephemeral=True
             )
-            return
-
-        # 2. Missing any of several roles (caso mude para has_any_role)
-        if isinstance(error, app_commands.MissingAnyRole):
-            roles = ", ".join(f"<@&{role_id}>" for role_id in error.missing_roles)
-            await interaction.response.send_message(
-                f" You need one of these roles: {roles}",
-                ephemeral=True
-            )
-            return
-
-        # 3. Bot missing permissions (ex: não consegue ler o canal)
-        if isinstance(error, app_commands.BotMissingPermissions):
-            missing = ", ".join(error.missing_permissions)
-            await interaction.response.send_message(
-                f" I'm missing permissions: `{missing}`. Please check my role/permissions.",
-                ephemeral=True
-            )
-            return
-
-        # 4. Qualquer outro erro inesperado
-        await interaction.response.send_message(
-            f" An unexpected error occurred: `{error}`",
-            ephemeral=True
-        )
-        # Opcional: registrar no console/log
-        print(f"[ERROR] gm_track_role: {error}")
+        else:
+            await interaction.response.send_message(f"❌ An error occurred: {error}", ephemeral=True)
 
 
 async def setup(client):
