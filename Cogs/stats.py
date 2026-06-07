@@ -211,14 +211,17 @@ def build_pages(name: str, stats: dict) -> list[tuple[discord.Embed, list]]:
     )
     # =====================================
 
-    d_g_won  = _safe_int(s.get("duo_good_games_won"))
-    d_e_won  = _safe_int(s.get("duo_evil_games_won"))
-    d_gwain  = _safe_int(s.get("duo_died_as_gawain"))
-    d_g_lost = _safe_int(s.get("duo_good_games_lost"))
-    d_e_lost = _safe_int(s.get("duo_evil_games_lost"))
+    d_g_won       = _safe_int(s.get("duo_good_games_won"))
+    d_e_won       = _safe_int(s.get("duo_evil_games_won"))
+    d_nimue_won   = _safe_int(s.get("duo_nimue_games_won"))
+    d_gwain_won   = _safe_int(s.get("duo_died_as_gawain"))
+    d_g_lost      = _safe_int(s.get("duo_good_games_lost"))
+    d_e_lost      = _safe_int(s.get("duo_evil_games_lost"))
+    d_nimue_lost  = _safe_int(s.get("duo_nimue_games_lost"))
+    d_gawain_lost = _safe_int(s.get("duo_gawain_games_lost"))
 
-    total_duo_won   = d_g_won + d_e_won 
-    total_duo_games = total_duo_won + d_g_lost + d_e_lost
+    total_duo_won   = d_g_won + d_e_won + d_nimue_won + d_gwain_won
+    total_duo_games = d_g_won + d_e_won +d_g_lost + d_e_lost + d_nimue_lost + d_gawain_lost + d_gwain_won + d_nimue_won
     duo_ratio = f"{(total_duo_won / total_duo_games * 100):.1f}%" if total_duo_games > 0 else "0%"
 
     e5.add_field(name="Duo Mixed Win Ratio", value=f"**{duo_ratio}**", inline=False)
@@ -230,7 +233,7 @@ def build_pages(name: str, stats: dict) -> list[tuple[discord.Embed, list]]:
         inline=False,
     )
 
-    duo_died = _safe_int(s.get("duo_died_for_good")) + _safe_int(s.get("duo_died_for_evil")) + d_gwain + _safe_int(s.get("duo_died_as_nimue"))
+    duo_died = _safe_int(s.get("duo_died_for_good")) + _safe_int(s.get("duo_died_for_evil")) + d_gwain_won  + _safe_int(s.get("duo_died_as_nimue"))
     duo_killed_correctly = _safe_int(s.get("duo_was_killed_correctly"))
     if duo_died > 0:
         e5.add_field(

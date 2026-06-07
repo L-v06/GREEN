@@ -210,8 +210,8 @@ def _fetch_player_stats(nome: str) -> dict:
         "evil_games_won":           _cell(dados, "D3"),
         "good_games_lost":          _cell(dados, "D4"),
         "evil_games_lost":          _cell(dados, "D5"),
-        "Gawain Good lost":         _cell(dados, "D6"),
-        "Gawain Evil lost":         _cell(dados, "D7"),
+        "gawain_good_lost":         _cell(dados, "D6"),
+        "gawain_evil_lost":         _cell(dados, "D7"),
 
 
 
@@ -230,31 +230,31 @@ def _fetch_player_stats(nome: str) -> dict:
         "evil_role_won_most":       _cell(dados, "H3"),
         "good_role_lost_most":      _cell(dados, "H4"),
         "evil_role_lost_most":      _cell(dados, "H5"),
-        "Nimue Win Good":           _cell(dados, "H6"),
-        "Nimue Win Evil":           _cell(dados, "H7"),
+        "nimue_win_good":           _cell(dados, "H6"),
+        "nimue_win_evil":           _cell(dados, "H7"),
 
         # --- DUO STATS ---
         "duo_good_games_won":       _cell(dados, "D12"),
         "duo_evil_games_won":       _cell(dados, "D13"),
         "duo_good_games_lost":      _cell(dados, "D14"),
         "duo_evil_games_lost":      _cell(dados, "D15"),
-        "duo_gawain Good lost":     _cell(dados, "D16"),
-        "duo_gawain Evil lost":     _cell(dados, "D17"),
+        "duo_gawain_Good_lost":     _cell(dados, "D16"),
+        "duo_gawain_Evil_lost":     _cell(dados, "D17"),
 
         "duo_gawain_games_won":     _cell(dados, "F12"),
         "duo_nimue_games_won":      _cell(dados, "F13"),
         "duo_gawain_games_lost":    _cell(dados, "F14"),
         "duo_nimue_games_lost":     _cell(dados, "F15"),
-        "duo_nimue Good Lost":      _cell(dados, "F16"),
-        "duo_nimue Evil Lost":      _cell(dados, "F17"),
+        "duo_nimue_Good_lost":      _cell(dados, "F16"),
+        "duo_nimue_Evil_lost":      _cell(dados, "F17"),
 
 
         "duo_good_role_won_most":   _cell(dados, "H12"),
         "duo_evil_role_won_most":   _cell(dados, "H13"),
         "duo_good_role_lost_most":  _cell(dados, "H14"),
         "duo_evil_role_lost_most":  _cell(dados, "H15"),
-        "duo_nimue Win Good":       _cell(dados, "H16"),
-        "duo_nimue Win Evil":       _cell(dados, "H17"),
+        "duo_nimue Win_Good":       _cell(dados, "H16"),
+        "duo_nimue Win_Evil":       _cell(dados, "H17"),
 
         "duo_good_win_ratio":       _cell(dados, "J12"),
         "duo_evil_win_ratio":       _cell(dados, "J13"),
