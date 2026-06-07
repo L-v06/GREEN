@@ -178,7 +178,6 @@ def build_pages(name: str, stats: dict) -> list[tuple[discord.Embed, list]]:
     e4.set_footer(text="Extra Info")
     pages.append((e4, []))
 
-    
     # ------------------------------------------------------------------
     # PÁGINA 5 — Duo Stats
     # ------------------------------------------------------------------
@@ -199,19 +198,29 @@ def build_pages(name: str, stats: dict) -> list[tuple[discord.Embed, list]]:
         value=duo_format(s.get("duo_evil_games_lost"), s.get("duo_good_games_lost")),
         inline=False,
     )
+
+    # ========== MODIFICAÇÃO AQUI ==========
+    # Substitui o bloco de código por texto simples para evitar quebra de nomes longos
+    evil_role_most = s.get("duo_evil_role_won_most") or "-"
+    good_role_most = s.get("duo_good_role_won_most") or "-"
     e5.add_field(
         name="Duo Won Most As",
-        value=duo_format(s.get("duo_evil_role_won_most"), s.get("duo_good_role_won_most")),
+        value=f"**Evil:** {evil_role_most}\n**Good:** {good_role_most}",
         inline=False,
     )
+    # =====================================
 
-    d_g_won  = _safe_int(s.get("duo_good_games_won"))
-    d_e_won  = _safe_int(s.get("duo_evil_games_won"))
-    d_g_lost = _safe_int(s.get("duo_good_games_lost"))
-    d_e_lost = _safe_int(s.get("duo_evil_games_lost"))
+    d_g_won       = _safe_int(s.get("duo_good_games_won"))
+    d_e_won       = _safe_int(s.get("duo_evil_games_won"))
+    d_nimue_won   = _safe_int(s.get("duo_nimue_games_won"))
+    d_gwain_won   = _safe_int(s.get("duo_died_as_gawain"))
+    d_g_lost      = _safe_int(s.get("duo_good_games_lost"))
+    d_e_lost      = _safe_int(s.get("duo_evil_games_lost"))
+    d_nimue_lost  = _safe_int(s.get("duo_nimue_games_lost"))
+    d_gawain_lost = _safe_int(s.get("duo_gawain_games_lost"))
 
-    total_duo_won   = d_g_won + d_e_won
-    total_duo_games = total_duo_won + d_g_lost + d_e_lost
+    total_duo_won   = d_g_won + d_e_won + d_nimue_won + d_gwain_won
+    total_duo_games = d_g_won + d_e_won + d_g_lost + d_e_lost + d_nimue_lost + d_gawain_lost + d_gwain_won + d_nimue_won
     duo_ratio = f"{(total_duo_won / total_duo_games * 100):.1f}%" if total_duo_games > 0 else "0%"
 
     e5.add_field(name="Duo Mixed Win Ratio", value=f"**{duo_ratio}**", inline=False)
@@ -223,7 +232,7 @@ def build_pages(name: str, stats: dict) -> list[tuple[discord.Embed, list]]:
         inline=False,
     )
 
-    duo_died = _safe_int(s.get("duo_died_for_good")) + _safe_int(s.get("duo_died_for_evil")) + _safe_int(s.get("duo_died_as_gawain")) + _safe_int(s.get("duo_died_as_nimue"))
+    duo_died = _safe_int(s.get("duo_died_for_good")) + _safe_int(s.get("duo_died_for_evil")) + d_gwain_won  + _safe_int(s.get("duo_died_as_nimue"))
     duo_killed_correctly = _safe_int(s.get("duo_was_killed_correctly"))
     if duo_died > 0:
         e5.add_field(
@@ -282,13 +291,9 @@ def build_pages(name: str, stats: dict) -> list[tuple[discord.Embed, list]]:
     e7.set_footer(text="Evil Roles")
     pages.append((e7, [make_evil_roles_graph(s)]))
 
-
-
     # ------------------------------------------------------------------
     # PÁGINA 8 — Died as Good (Single + Duo, incluindo Gawain)
     # ------------------------------------------------------------------
-
-
     died_as_good_single = _safe_int(s.get("died_for_good"))
     died_as_gawain      = _safe_int(s.get("died_as_gawain"))
     duo_died_good       = _safe_int(s.get("duo_died_for_good"))
@@ -305,7 +310,6 @@ def build_pages(name: str, stats: dict) -> list[tuple[discord.Embed, list]]:
             if clean in good_roles_set:
                 combined_good_death_roles[role] = combined_good_death_roles.get(role, 0) + count * multiplier
 
-    # Corrigido: roles_died_with é um dicionário, não inteiro
     add_roles(s.get("roles_that_died_with", {}))
     if died_as_gawain > 0:
         combined_good_death_roles["Gawain"] = combined_good_death_roles.get("Gawain", 0) + died_as_gawain
@@ -319,11 +323,9 @@ def build_pages(name: str, stats: dict) -> list[tuple[discord.Embed, list]]:
 
     if total_good_deaths > 0:
         e8 = discord.Embed(title=f"{name.upper()}  —  Died as Good", color=0x2ecc71)
-        # Apenas a contagem e a percentagem, sem frases por papel
         e8.description = (
             f"You were killed **{total_good_deaths}** times while playing as Good.\n"
         )
-
         e8.set_image(url="attachment://graph.png")
         e8.set_footer(text="Died as Good")
         graph_data = {"roles_played": combined_good_death_roles} if combined_good_death_roles else None
@@ -332,13 +334,9 @@ def build_pages(name: str, stats: dict) -> list[tuple[discord.Embed, list]]:
         else:
             pages.append((e8, []))
 
-
-
     # ------------------------------------------------------------------
     # PÁGINA 9 — Died as Evil (Single + Duo)
     # ------------------------------------------------------------------
-
-
     died_as_evil_single = _safe_int(s.get("died_for_evil"))
     duo_died_evil       = _safe_int(s.get("duo_died_for_evil"))
     total_evil_deaths   = died_as_evil_single + duo_died_evil
@@ -364,11 +362,9 @@ def build_pages(name: str, stats: dict) -> list[tuple[discord.Embed, list]]:
 
     if total_evil_deaths > 0:
         e9 = discord.Embed(title=f"{name.upper()}  —  Died as Evil", color=0xe74c3c)
-        # Apenas a contagem e a percentagem, sem frases por papel
         e9.description = (
             f"You were killed **{total_evil_deaths}** times while playing as Evil.\n"
         )
-        
         e9.set_image(url="attachment://graph.png")
         e9.set_footer(text="Died as Evil")
         graph_data_evil = {"roles_played": combined_evil_death_roles} if combined_evil_death_roles else None
