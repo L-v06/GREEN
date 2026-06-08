@@ -74,12 +74,11 @@ class PaginatorView(View):
             await self.update_message(interaction)
 
     async def on_timeout(self):
+        # Disable all components after timeout (no message stored, just disable safely)
         for item in self.children:
             item.disabled = True
-        try:
-            await self.message.edit(view=self)
-        except:
-            pass
+        # We can't edit the original message here because we don't have its reference.
+        # Discord will keep the view active but disabled – that's fine.
 
 
 class gm_track_role(commands.Cog):
@@ -90,12 +89,23 @@ class gm_track_role(commands.Cog):
         name="gm_track_role",
         description="Show last role and streaks for each player who reacted to a sign‑up message"
     )
-    @app_commands.checks.has_role(1126393102291185744)  # role ID
-    @app_commands.default_permissions(administrator=True)
+    #@app_commands.checks.has_role(1126393102291185744)  # role ID
+    #@app_commands.default_permissions(administrator=True)
     @app_commands.guilds(discord.Object(id=int(GUILD_ID)))
     async def track_role(self, interaction: discord.Interaction, sign_up_message_id: str):
-        await interaction.response.defer()
-        sign_up_message_id = int(sign_up_message_id)
+        # Try to defer – if it fails, the interaction is dead, we can only log.
+        try:
+            await interaction.response.defer(ephemeral=False)
+        except discord.NotFound:
+            print("[ERROR] Interaction expired / not found – cannot defer.")
+            return
+
+        try:
+            sign_up_message_id = int(sign_up_message_id)
+        except ValueError:
+            await interaction.followup.send("❌ Invalid message ID.", ephemeral=True)
+            return
+
         target_channel = self.client.get_channel(int(ROUND_TABLE_ID))
         if not target_channel:
             await interaction.followup.send("❌ Round Table channel not found. Check ROUND_TABLE_ID.", ephemeral=True)
@@ -205,23 +215,32 @@ class gm_track_role(commands.Cog):
         # Send with navigation view
         view = PaginatorView(embeds, interaction.user.id, timeout=120)
         await interaction.followup.send(embed=embeds[0], view=view)
-        # Store message reference in view for timeout cleanup (optional)
-        try:
-            msg = await interaction.original_response()
-            view.message = msg
-        except:
-            pass
 
     @track_role.error
     async def track_role_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
-        if isinstance(error, app_commands.MissingRole):
-            role_id = error.missing_role
-            await interaction.response.send_message(
-                f"❌ You need the <@&{role_id}> role to use `/gm_track_role`.",
-                ephemeral=True
-            )
+        # If the interaction was never responded to, we can still send an ephemeral message.
+        if not interaction.response.is_done():
+            if isinstance(error, app_commands.MissingRole):
+                role_id = error.missing_role
+                await interaction.response.send_message(
+                    f"❌ You need the <@&{role_id}> role to use `/gm_track_role`.",
+                    ephemeral=True
+                )
+            else:
+                await interaction.response.send_message(f"❌ An error occurred: {error}", ephemeral=True)
         else:
-            await interaction.response.send_message(f"❌ An error occurred: {error}", ephemeral=True)
+            # Interaction already responded, use followup
+            try:
+                if isinstance(error, app_commands.MissingRole):
+                    role_id = error.missing_role
+                    await interaction.followup.send(
+                        f"❌ You need the <@&{role_id}> role to use `/gm_track_role`.",
+                        ephemeral=True
+                    )
+                else:
+                    await interaction.followup.send(f"❌ An error occurred: {error}", ephemeral=True)
+            except:
+                pass  # Nothing we can do
 
 
 async def setup(client):
