@@ -336,8 +336,11 @@ def load_all_players(force: bool = False):
     print(f"[sheets] Buscando {len(nomes)} jogadores no Sheets...")
     for nome in nomes:
         print(f"[sheets] → {nome}")
-        stats_cache[nome.lower()] = _fetch_player_stats(nome)
-        time.sleep(1)
+        if nome == "Null" or nome == 'Emma':
+            continue
+        else:
+            stats_cache[nome.lower()] = _fetch_player_stats(nome)
+            time.sleep(1)
 
     # Integra estatísticas de morte separadas
     all_death, duo_death = compute_death_stats()
@@ -348,7 +351,7 @@ def load_all_players(force: bool = False):
         if key in stats_cache:
             stats_cache[key].update(death_dict)
         else:
-            stats_cache[key] = death_dict
+            continue
 
     # Duo → adiciona com prefixo duo_
     for player_name, duo_dict in duo_death.items():
@@ -357,7 +360,7 @@ def load_all_players(force: bool = False):
             for k, v in duo_dict.items():
                 stats_cache[key][f"duo_{k}"] = v
         else:
-            stats_cache[key] = {f"duo_{k}": v for k, v in duo_dict.items()}
+            continue
 
     _save_cache()
     print("[sheets] Cache completo (com mortes separadas)!")

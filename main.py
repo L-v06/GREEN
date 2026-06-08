@@ -48,7 +48,10 @@ async def on_ready():
     # carrega o cache do Sheets — roda uma vez no startup
     print('[bot] Carregando cache do Google Sheets...')
     from utils_sheets import load_all_players
-    await discord.utils.asyncio.get_event_loop().run_in_executor(None, load_all_players)
+    from utils_roles import load_all_roles
+    loop = discord.utils.asyncio.get_event_loop()
+    await loop.run_in_executor(None, load_all_players)
+    await loop.run_in_executor(None, load_all_roles)
     print('[bot] Cache pronto!')
 
     print('----------------------')
