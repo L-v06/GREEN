@@ -1,10 +1,12 @@
+# role_stats.py
+
 import discord
 from discord.ext import commands
 from discord import app_commands
 from discord.ui import View, Button, Select
 
 from utils_config import GUILD_ID
-from utils_roles import get_role_stats, ROLE_MAP
+from utils_roles import get_role_stats, ROLE_MAP, load_all_roles
 from utils_graphs import GOOD_ROLES, EVIL_ROLES
 
 
@@ -19,8 +21,8 @@ ALL_ROLES = sorted(ROLE_MAP.keys())
 
 def _role_color(role_name: str) -> int:
     if role_name.lower() in EVIL_ROLES_SET:
-        return 0xe74c3c  # vermelho
-    return 0x2ecc71      # verde
+        return 0xe74c3c  # red
+    return 0x2ecc71      # green
 
 def _safe_int(v) -> int:
     try:
@@ -135,7 +137,7 @@ def build_role_pages(role_name: str, stats: dict) -> list[discord.Embed]:
 
 
 # ==============================================================================
-# Paginator View (mesmo estilo do gm_track_role)
+# Paginator View (same style as general stats)
 # ==============================================================================
 
 class RolePaginatorView(View):
@@ -200,7 +202,8 @@ class RolePaginatorView(View):
         for item in self.children:
             item.disabled = True
         try:
-            await self.message.edit(view=self)
+            if self.message:
+                await self.message.edit(view=self)
         except:
             pass
 
@@ -212,12 +215,26 @@ class RolePaginatorView(View):
 class RoleStats(commands.Cog):
     def __init__(self, client):
         self.client = client
+        # Garante que o cache de roles seja carregado (se não existir, busca do Sheets)
+        # A função load_all_roles() já verifica se o cache existe em disco; se não,
+        # faz a requisição para o Google Sheets.
+        # Como pode ser uma operação demorada, executamos em segundo plano para não travar o bot.
+        self.bot.loop.create_task(self._ensure_cache())
+
+    async def _ensure_cache(self):
+        """Executa load_all_roles() em um executor para não bloquear o loop."""
+        await self.bot.loop.run_in_executor(None, load_all_roles)
 
     @app_commands.command(name="role_stats", description="Show stats for a specific Avalon role")
     @app_commands.describe(role="The role name to look up")
     @app_commands.guilds(discord.Object(id=int(GUILD_ID)))
     async def role_stats(self, interaction: discord.Interaction, role: str):
         await interaction.response.defer()
+
+        # Garantir que o cache está carregado antes de prosseguir (caso o _ensure_cache ainda não tenha terminado)
+        if not get_role_stats(role):
+            # Se ainda não carregou, tenta carregar agora (pode ser um pouco lento)
+            await self.bot.loop.run_in_executor(None, load_all_roles)
 
         # Fuzzy match: tenta achar o role pelo nome (case-insensitive, parcial)
         role_lower = role.strip().lower()
@@ -243,14 +260,14 @@ class RoleStats(commands.Cog):
         stats = get_role_stats(matched)
         if stats is None:
             await interaction.followup.send(
-                f"❌ Stats for **{matched}** not loaded. Run `/update` first.",
+                f"❌ Stats for **{matched}** could not be loaded. Please try again later.",
                 ephemeral=True,
             )
             return
 
         embeds = build_role_pages(matched, stats)
         view = RolePaginatorView(embeds, interaction.user.id, timeout=120)
-        view.prev_button.disabled = True  # começa na primeira página
+        view.prev_button.disabled = True  # first page
 
         msg = await interaction.followup.send(embed=embeds[0], view=view)
         try:
