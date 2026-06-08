@@ -1,4 +1,4 @@
-# role_stats.py
+# role_stats.py (ou roles_stats.py)
 
 import discord
 from discord.ext import commands
@@ -215,15 +215,12 @@ class RolePaginatorView(View):
 class RoleStats(commands.Cog):
     def __init__(self, client):
         self.client = client
-        # Garante que o cache de roles seja carregado (se não existir, busca do Sheets)
-        # A função load_all_roles() já verifica se o cache existe em disco; se não,
-        # faz a requisição para o Google Sheets.
-        # Como pode ser uma operação demorada, executamos em segundo plano para não travar o bot.
-        self.bot.loop.create_task(self._ensure_cache())
+        # Start background cache loading (non-blocking)
+        self.client.loop.create_task(self._ensure_cache())
 
     async def _ensure_cache(self):
-        """Executa load_all_roles() em um executor para não bloquear o loop."""
-        await self.bot.loop.run_in_executor(None, load_all_roles)
+        """Load role cache in background using an executor."""
+        await self.client.loop.run_in_executor(None, load_all_roles)
 
     @app_commands.command(name="role_stats", description="Show stats for a specific Avalon role")
     @app_commands.describe(role="The role name to look up")
@@ -231,12 +228,11 @@ class RoleStats(commands.Cog):
     async def role_stats(self, interaction: discord.Interaction, role: str):
         await interaction.response.defer()
 
-        # Garantir que o cache está carregado antes de prosseguir (caso o _ensure_cache ainda não tenha terminado)
+        # Ensure cache is loaded (if still empty, load synchronously in executor)
         if not get_role_stats(role):
-            # Se ainda não carregou, tenta carregar agora (pode ser um pouco lento)
-            await self.bot.loop.run_in_executor(None, load_all_roles)
+            await self.client.loop.run_in_executor(None, load_all_roles)
 
-        # Fuzzy match: tenta achar o role pelo nome (case-insensitive, parcial)
+        # Fuzzy match: case-insensitive, partial
         role_lower = role.strip().lower()
         matched = None
         for r in ROLE_MAP:
