@@ -6,10 +6,9 @@ import time
 import gspread
 from google.oauth2.service_account import Credentials
 
-from utils_config import _fuzzy_match_name_local
+from utils_config import _fuzzy_match_name_local, _PFX, CACHE_FILE, CACHE_GAMES_FILE, SHEET_NAME
 from utils_graphs import GOOD_ROLES, EVIL_ROLES
 
-CACHE_FILE = "stats_cache.json"
 
 scopes = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -19,12 +18,16 @@ scopes = [
 creds = Credentials.from_service_account_file("green_credentials.json", scopes=scopes)
 client = gspread.authorize(creds)
 
-planilha = client.open("TESTE")
+
+
+
+planilha = client.open(SHEET_NAME)
 pagina = planilha.get_worksheet(0)
-pagina_nomes = planilha.get_worksheet(6)
+pagina_nomes = planilha.worksheet('Death Counter')
+
 
 nomes = pagina_nomes.col_values(1)
-nomes = [n for n in nomes if n not in ("Name", "Null", "")]
+nomes = [n for n in nomes if n not in ("Name", "Null", "Emma","")]
 
 stats_cache: dict = {}
 
@@ -187,22 +190,58 @@ def compute_death_stats():
 # Leitura de um jogador — 3 requisições (update + range principal + roles)
 # ==============================================================================
 
+def extrair_pares(range_str, pagina_ref=None):
+    ref = pagina_ref if pagina_ref else pagina
+    dados = ref.get(range_str)
+    resultado = {}
+    if dados:
+        for linha in dados:
+            if len(linha) >= 2:
+                chave = linha[0]
+                valor_str = linha[1]
+                if chave and chave.strip() and chave != "-":
+                    resultado[chave] = _safe_int(valor_str)
+    return resultado
+
 def _fetch_player_stats(nome: str) -> dict:
     pagina.update_acell("A2", nome)
     time.sleep(2)
 
-    dados = pagina.get("A1:J55")
+    dados        = pagina.get("A1:J55")
+    dados_roles  = pagina.get("A24:AJ25")
+    dados_extras = pagina.get("C58:H70")  # cobre todos os extrair_pares de uma vez
+    time.sleep(1)
 
-    dados_roles = pagina.get("A24:AJ25")
+    # --- roles played ---
     roles_played = {}
     if len(dados_roles) >= 2:
         nomes_roles = dados_roles[0]
         qtds_roles  = dados_roles[1]
         roles_played = {
-            nome_role: _safe_int(qtd)
-            for nome_role, qtd in zip(nomes_roles, qtds_roles)
-            if nome_role and nome_role.strip() and nome_role != "-"
+            nr: _safe_int(qtd)
+            for nr, qtd in zip(nomes_roles, qtds_roles)
+            if nr and nr.strip() and nr != "-"
         }
+
+
+    def _pares_local(linhas, row_start, row_end, col_a, col_b):
+        resultado = {}
+        for i in range(row_start, min(row_end + 1, len(linhas))):
+            linha = linhas[i]
+            if len(linha) > col_b:
+                chave = linha[col_a]
+                valor = linha[col_b]
+                if chave and chave.strip() and chave != "-":
+                    resultado[chave] = _safe_int(valor)
+        return resultado
+
+    most_played_good_with     = _pares_local(dados_extras, 0,  2,  0, 1)
+    most_played_evil_with     = _pares_local(dados_extras, 0,  2,  4, 5)
+    most_played_with          = _pares_local(dados_extras, 5,  7,  0, 1)
+    paired_with_the_most      = _pares_local(dados_extras, 5,  7,  4, 5)
+    duo_most_played_good_with = _pares_local(dados_extras, 10, 12, 0, 1)
+    duo_most_played_evil_with = _pares_local(dados_extras, 10, 12, 4, 5)
+
 
     stats = {
         # --- GENERAL STATS ---
@@ -261,6 +300,10 @@ def _fetch_player_stats(nome: str) -> dict:
         "duo_good_loss_ratio":      _cell(dados, "J14"),
         "duo_evil_loss_ratio":      _cell(dados, "J15"),
 
+        "duo_most_played_good_with":  duo_most_played_good_with,
+        "duo_most_played_evil_with":  duo_most_played_evil_with,
+
+
         # --- GM STATS ---
         "gm_single":                _cell(dados, "C21"),
         "gm_duo":                   _cell(dados, "D21"),
@@ -301,6 +344,17 @@ def _fetch_player_stats(nome: str) -> dict:
         "longest_good_streak":      _cell(dados, "I49"),
         "longest_game_streak":      _cell(dados, "C52"),
         "current_game_streak":      _cell(dados, "E52"),
+
+         # --- GAMES_PLAYERS_RELATION ---
+
+        "most_played_good_with":      most_played_good_with,
+        "most_played_evil_with":      most_played_evil_with,
+        "played_with_the_most":       most_played_with,
+        "paired_with_the_most":       paired_with_the_most,
+
+        
+
+        
 
         # --- ROLES PLAYED ---
         "roles_played":             roles_played,
@@ -385,3 +439,150 @@ def refresh_player(nome: str) -> dict:
     stats_cache[key] = stats
     _save_cache()
     return stats
+
+# ==============================================================================
+# GM - Jogos por planilha
+# trecho para substituir no utils_sheets.py
+# ==============================================================================
+
+games_cache: dict = {}
+
+pagina_gm = planilha.worksheet('GM Game Finder')
+
+
+def _fetch_gm_games(gm_name: str, total_games: int) -> list:
+    jogos = []
+    for i in range(1, total_games + 1):
+        pagina_gm.update([[gm_name]], "A2")
+        pagina_gm.update([[i]], "B2")
+        time.sleep(2)
+
+        # D2:J30 cobre: date(D), players(E), roles(F), [G ignorado], title(H), [I ignorado], notes(J)
+        dados    = pagina_gm.get("D2:J30")
+        co_dados = pagina_gm.get("A6:A8")
+
+        if not dados:
+            continue
+
+        first_row = dados[0] if dados else []
+
+        date  = first_row[0].strip() if len(first_row) > 0 and first_row[0].strip() else None
+        title = first_row[4].strip() if len(first_row) > 4 and first_row[4].strip() else None
+        notes = first_row[6].strip() if len(first_row) > 6 and first_row[6].strip() else None
+
+        # co-GMs: A6:A8, ignora "No other GM" e vazios
+        co_gms = []
+        if co_dados:
+            for row in co_dados:
+                val = row[0].strip() if row and row[0].strip() else ""
+                if val and val.lower() != "no other gm":
+                    co_gms.append(val)
+
+        # players: coluna E=índice 1, F=índice 2 dentro do range D2:J30
+        players = {}
+        for linha in dados:
+            if len(linha) >= 3 and linha[1].strip():
+                players[linha[1].strip()] = linha[2].strip() if len(linha) > 2 else ""
+
+        jogos.append({
+            "game_number": i,
+            "date": date,
+            "title": title,
+            "notes": notes,
+            "co_gms": co_gms,
+            "players": players,
+        })
+
+    return jogos
+
+
+def _save_games_cache():
+    with open(CACHE_GAMES_FILE, "w", encoding="utf-8") as f:
+        json.dump(games_cache, f, indent=4, ensure_ascii=False)
+    print(f"[sheets] Games cache salvo em {CACHE_GAMES_FILE}")
+
+
+def _load_games_cache_from_file() -> bool:
+    if not os.path.exists(CACHE_GAMES_FILE):
+        return False
+    with open(CACHE_GAMES_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    games_cache.update(data)
+    print(f"[sheets] Games cache carregado ({len(data)} GMs)")
+    return True
+
+
+def load_all_gm_games(force: bool = False):
+    if not force and _load_games_cache_from_file():
+        return
+
+    gms = [
+        nome for nome in nomes
+        if _safe_int(stats_cache.get(nome.lower(), {}).get("total_games_gmed")) > 0
+    ]
+
+    print(f"[sheets] Buscando jogos de {len(gms)} GMs...")
+    for gm_name in gms:
+        total = _safe_int(stats_cache[gm_name.lower()]["total_games_gmed"])
+        print(f"[sheets] → {gm_name} ({total} jogos)")
+        games_cache[gm_name.lower()] = _fetch_gm_games(gm_name, total)
+
+    _save_games_cache()
+    print("[sheets] Games cache completo!")
+
+
+def get_gm_games(gm_name: str) -> list | None:
+    return games_cache.get(gm_name.lower())
+
+
+def update_game_info(gm_name: str, game_number: int, title: str | None, notes: str | None):
+    
+
+    def _write_to_sheet(name: str, num: int, t: str | None, n: str | None):
+        pagina_gm.update([[name]], "A2")
+        pagina_gm.update([[num]], "B2")
+        time.sleep(1)
+        if t is not None:
+            pagina_gm.update([[t]], "H2")
+        if n is not None:
+            pagina_gm.update([[n]], "J2")
+
+    def _update_cache_entry(key: str, num: int, t: str | None, n: str | None):
+        if key not in games_cache:
+            return
+        for jogo in games_cache[key]:
+            if jogo["game_number"] == num:
+                if t is not None:
+                    jogo["title"] = t or None
+                if n is not None:
+                    jogo["notes"] = n or None
+                break
+
+    # salva no GM principal
+    _write_to_sheet(gm_name, game_number, title, notes)
+    _update_cache_entry(gm_name.lower(), game_number, title, notes)
+    print(f"[sheets] Updated → {gm_name} #{game_number} | title={title} | notes={notes}")
+
+    # propaga para co-GMs — busca pelo mesmo jogo (mesma data)
+    key_main = gm_name.lower()
+    source_jogo = next(
+        (j for j in games_cache.get(key_main, []) if j["game_number"] == game_number),
+        None,
+    )
+
+    if source_jogo and source_jogo.get("co_gms"):
+        source_date = source_jogo.get("date")
+        for co_gm in source_jogo["co_gms"]:
+            co_key = co_gm.lower()
+            co_jogos = games_cache.get(co_key, [])
+            # encontra o jogo do co-GM pela mesma data
+            co_jogo = next((j for j in co_jogos if j.get("date") == source_date), None)
+            if co_jogo is None:
+                print(f"[sheets] Co-GM {co_gm}: jogo com date={source_date} não encontrado no cache")
+                continue
+            co_num = co_jogo["game_number"]
+            _write_to_sheet(co_gm, co_num, title, notes)
+            _update_cache_entry(co_key, co_num, title, notes)
+            print(f"[sheets] Propagated → {co_gm} #{co_num}")
+
+    _save_games_cache()

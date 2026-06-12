@@ -1,247 +1,382 @@
-import json
 import discord
 from discord.ext import commands
 from discord import app_commands
-from discord.ui import View, Button, Select
-from utils_config import GUILD_ID, ROUND_TABLE_ID, _fuzzy_match_name_local
-from utils_sheets import nomes, get_player_stats
+from discord.ui import View, Button, Modal, TextInput
 
-with open("players_ids.json", "r", encoding="utf-8") as f:
-    PLAYERS_IDS = json.load(f)
+from utils_config import GUILD_ID
+from utils_sheets import nomes, get_gm_games, update_game_info
 
 
-class PaginatorView(View):
-    def __init__(self, embeds: list, author_id: int, timeout=120):
+# ==============================================================================
+# Helpers
+# ==============================================================================
+
+PLAYER_DISPLAY = {"Null": "Player 1", "Emma": "Player 2"}
+
+
+def _format_players(players: dict) -> str:
+    if not players:
+        return "—"
+    lines = []
+    for name, role in players.items():
+        display = PLAYER_DISPLAY.get(name, name)
+        lines.append(f"• **{display}** — {role}")
+    return "\n".join(lines) if lines else "—"
+
+
+# ==============================================================================
+# Embeds
+# ==============================================================================
+
+def build_summary_embed(gm_name: str, jogos: list) -> discord.Embed:
+    e = discord.Embed(
+        title=f"🎲 {gm_name}",
+        color=0xD4AF37,
+        description=(
+            f"**{len(jogos)} games GMed**\n\n"
+            "Use **View Game** to jump to a specific game.\n"
+            "⬅️ ➡️ to navigate between games."
+        ),
+    )
+
+    chunk = ""
+    field_count = 1
+    for jogo in jogos:
+        num   = jogo.get("game_number")
+        title = jogo.get("title") or "no title"
+        line  = f"`{num}` — {title}\n"
+        if len(chunk) + len(line) > 1024:
+            e.add_field(name=f"Games {field_count}", value=chunk.strip(), inline=False)
+            chunk = ""
+            field_count += 1
+        chunk += line
+
+    if chunk:
+        label = "Games" if field_count == 1 else f"Games {field_count}"
+        e.add_field(name=label, value=chunk.strip(), inline=False)
+
+    e.set_footer(text=f"Summary  •  {gm_name}")
+    return e
+
+
+def build_game_embed(gm_name: str, jogo: dict, current: int, total: int) -> discord.Embed:
+    num     = jogo.get("game_number")
+    date    = jogo.get("date") or "—"
+    title   = jogo.get("title") or "no title"
+    notes   = jogo.get("notes")
+    players = jogo.get("players", {})
+
+    e = discord.Embed(
+        title=f"🎲 {gm_name}  •  Game #{num} — {title}",
+        color=0xD4AF37,
+    )
+    co_gms = jogo.get("co_gms", [])
+
+    e.add_field(name="📅 Date", value=date, inline=False)
+    if co_gms:
+        e.add_field(name="💚 Co-GMs", value=", ".join(co_gms), inline=False)
+    if notes:
+        e.add_field(name="📝 Notes", value=notes, inline=False)
+    e.add_field(name="👥 Players & Roles", value=_format_players(players), inline=False)
+    e.set_footer(text=f"Game {current}/{total}  •  {gm_name}")
+    return e
+
+
+# ==============================================================================
+# Modal — jump to game by number
+# ==============================================================================
+
+class JumpToGameModal(Modal, title="Jump to Game"):
+    game_number = TextInput(
+        label="Game number",
+        placeholder="e.g. 7",
+        min_length=1,
+        max_length=4,
+        required=True,
+    )
+
+    def __init__(self, view: "GMGamesView"):
+        super().__init__()
+        self.gm_view = view
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            num = int(self.game_number.value.strip())
+        except ValueError:
+            await interaction.response.send_message("❌ Please enter a valid number.", ephemeral=True)
+            return
+
+        jogos = self.gm_view.jogos
+        idx = next((i for i, j in enumerate(jogos) if j.get("game_number") == num), None)
+
+        if idx is None:
+            await interaction.response.send_message(
+                f"❌ Game #{num} not found. Valid range: 1–{len(jogos)}.",
+                ephemeral=True,
+            )
+            return
+
+        self.gm_view.current_game     = idx
+        self.gm_view._showing_summary = False
+        await self.gm_view._update(interaction)
+
+
+# ==============================================================================
+# Modal — swap GM
+# ==============================================================================
+
+class SwapGMModal(Modal, title="Switch GM"):
+    gm_name = TextInput(
+        label="GM name",
+        placeholder="e.g. Blue",
+        min_length=1,
+        max_length=30,
+        required=True,
+    )
+
+    def __init__(self, view: "GMGamesView"):
+        super().__init__()
+        self.gm_view = view
+
+    async def on_submit(self, interaction: discord.Interaction):
+        from utils_sheets import games_cache
+        gm_lower = self.gm_name.value.strip().lower()
+        jogos    = games_cache.get(gm_lower)
+
+        if not jogos:
+            await interaction.response.send_message(
+                f"❌ No games found for **{self.gm_name.value}**.", ephemeral=True
+            )
+            return
+
+        gm_display = next((n for n in nomes if n.lower() == gm_lower), self.gm_name.value.title())
+
+        self.gm_view.gm_name          = gm_display
+        self.gm_view.jogos            = jogos
+        self.gm_view.current_game     = 0
+        self.gm_view._showing_summary = True
+        await self.gm_view._update(interaction)
+
+
+# ==============================================================================
+# Modal — edit game title & notes
+# ==============================================================================
+
+class EditGameModal(Modal, title="Edit Game Info"):
+    game_title = TextInput(
+        label="Title",
+        placeholder="e.g. The Apocalypse Game",
+        min_length=0,
+        max_length=80,
+        required=False,
+    )
+    game_notes = TextInput(
+        label="Notes",
+        placeholder="e.g. That time we had a fake Elaine",
+        style=discord.TextStyle.paragraph,
+        min_length=0,
+        max_length=300,
+        required=False,
+    )
+
+    def __init__(self, view: "GMGamesView"):
+        super().__init__()
+        self.gm_view = view
+        jogo = view.jogos[view.current_game]
+        if jogo.get("title"):
+            self.game_title.default = jogo["title"]
+        if jogo.get("notes"):
+            self.game_notes.default = jogo["notes"]
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+
+        jogo        = self.gm_view.jogos[self.gm_view.current_game]
+        gm_name     = self.gm_view.gm_name
+        game_number = jogo["game_number"]
+
+        new_title = self.game_title.value.strip() or None
+        new_notes = self.game_notes.value.strip() or None
+
+        try:
+            update_game_info(gm_name, game_number, new_title, new_notes)
+        except Exception as ex:
+            await interaction.followup.send(f"❌ Failed to save: {ex}", ephemeral=True)
+            return
+
+        await interaction.followup.send("✅ Game info saved!", ephemeral=True)
+
+        await self.gm_view.message.edit(
+            embed=build_game_embed(
+                gm_name, jogo,
+                self.gm_view.current_game + 1,
+                len(self.gm_view.jogos),
+            ),
+            view=self.gm_view,
+        )
+
+
+# ==============================================================================
+# View principal
+# ==============================================================================
+
+class GMGamesView(View):
+    def __init__(self, gm_name: str, jogos: list, author_id: int, timeout=180):
         super().__init__(timeout=timeout)
-        self.embeds = embeds
-        self.current_page = 0
-        self.total_pages = len(embeds)
-        self.author_id = author_id
+        self.gm_name          = gm_name
+        self.jogos            = jogos
+        self.author_id        = author_id
+        self.current_game     = 0
+        self._showing_summary = True
+        self.message          = None
+        self._refresh_buttons()
 
-        # Previous / Next buttons
-        self.prev_button = Button(emoji="⬅️", style=discord.ButtonStyle.secondary)
-        self.prev_button.callback = self.previous_page
-        self.add_item(self.prev_button)
+    def _refresh_buttons(self):
+        self.clear_items()
 
-        self.next_button = Button(emoji="➡️", style=discord.ButtonStyle.secondary)
-        self.next_button.callback = self.next_page
-        self.add_item(self.next_button)
+        # --- row 0 ---
+        summary_btn = Button(label="📋 Summary", style=discord.ButtonStyle.secondary, row=0)
+        summary_btn.callback = self.show_summary
+        self.add_item(summary_btn)
 
-        # Dropdown menu for page selection (max 25 options)
-        options = []
-        for i, embed in enumerate(self.embeds):
-            if i == 0:
-                label = "📋 Summary"
-            else:
-                # Extract player name from embed title (format "📊 PlayerName")
-                title = embed.title
-                player_name = title.replace("📊", "").strip()
-                label = f"{player_name} (page {i+1})"
-            options.append(discord.SelectOption(label=label, value=str(i)))
-        self.select_menu = Select(placeholder="Jump to page...", options=options, row=1)
-        self.select_menu.callback = self.jump_to_page
-        self.add_item(self.select_menu)
+        jump_btn = Button(label="🎮 View Game", style=discord.ButtonStyle.primary, row=0)
+        jump_btn.callback = self.open_jump_modal
+        self.add_item(jump_btn)
 
-    async def update_message(self, interaction: discord.Interaction):
-        embed = self.embeds[self.current_page]
-        self.prev_button.disabled = (self.current_page == 0)
-        self.next_button.disabled = (self.current_page == self.total_pages - 1)
-        await interaction.response.edit_message(embed=embed, view=self)
+        swap_btn = Button(label="🔄 Switch GM", style=discord.ButtonStyle.secondary, row=0)
+        swap_btn.callback = self.open_swap_modal
+        self.add_item(swap_btn)
 
-    async def previous_page(self, interaction: discord.Interaction):
+        # --- row 1 — only on game embed ---
+        if not self._showing_summary:
+            prev_btn = Button(
+                emoji="⬅️", style=discord.ButtonStyle.secondary, row=1,
+                disabled=(self.current_game == 0),
+            )
+            prev_btn.callback = self.previous_game
+            self.add_item(prev_btn)
+
+            next_btn = Button(
+                emoji="➡️", style=discord.ButtonStyle.secondary, row=1,
+                disabled=(self.current_game == len(self.jogos) - 1),
+            )
+            next_btn.callback = self.next_game
+            self.add_item(next_btn)
+
+            edit_btn = Button(label="✏️ Edit Game", style=discord.ButtonStyle.secondary, row=1)
+            edit_btn.callback = self.open_edit_modal
+            self.add_item(edit_btn)
+
+    def _current_embed(self) -> discord.Embed:
+        if self._showing_summary:
+            return build_summary_embed(self.gm_name, self.jogos)
+        jogo = self.jogos[self.current_game]
+        return build_game_embed(self.gm_name, jogo, self.current_game + 1, len(self.jogos))
+
+    async def _update(self, interaction: discord.Interaction):
+        self._refresh_buttons()
+        await interaction.response.edit_message(embed=self._current_embed(), view=self)
+
+    async def show_summary(self, interaction: discord.Interaction):
         if interaction.user.id != self.author_id:
-            await interaction.response.send_message("❌ You are not the command author.", ephemeral=True)
+            await interaction.response.send_message("❌ Not your command.", ephemeral=True)
             return
-        if self.current_page > 0:
-            self.current_page -= 1
-            await self.update_message(interaction)
+        self._showing_summary = True
+        await self._update(interaction)
 
-    async def next_page(self, interaction: discord.Interaction):
+    async def open_jump_modal(self, interaction: discord.Interaction):
         if interaction.user.id != self.author_id:
-            await interaction.response.send_message("❌ You are not the command author.", ephemeral=True)
+            await interaction.response.send_message("❌ Not your command.", ephemeral=True)
             return
-        if self.current_page < self.total_pages - 1:
-            self.current_page += 1
-            await self.update_message(interaction)
+        await interaction.response.send_modal(JumpToGameModal(self))
 
-    async def jump_to_page(self, interaction: discord.Interaction):
+    async def open_swap_modal(self, interaction: discord.Interaction):
         if interaction.user.id != self.author_id:
-            await interaction.response.send_message("❌ You are not the command author.", ephemeral=True)
+            await interaction.response.send_message("❌ Not your command.", ephemeral=True)
             return
-        selected = int(self.select_menu.values[0])
-        if 0 <= selected < self.total_pages:
-            self.current_page = selected
-            await self.update_message(interaction)
+        await interaction.response.send_modal(SwapGMModal(self))
+
+    async def open_edit_modal(self, interaction: discord.Interaction):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message("❌ Not your command.", ephemeral=True)
+            return
+        await interaction.response.send_modal(EditGameModal(self))
+
+    async def previous_game(self, interaction: discord.Interaction):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message("❌ Not your command.", ephemeral=True)
+            return
+        if self.current_game > 0:
+            self.current_game -= 1
+            await self._update(interaction)
+
+    async def next_game(self, interaction: discord.Interaction):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message("❌ Not your command.", ephemeral=True)
+            return
+        if self.current_game < len(self.jogos) - 1:
+            self.current_game += 1
+            await self._update(interaction)
 
     async def on_timeout(self):
-        # Disable all components after timeout (no message stored, just disable safely)
         for item in self.children:
             item.disabled = True
-        # We can't edit the original message here because we don't have its reference.
-        # Discord will keep the view active but disabled – that's fine.
+        try:
+            await self.message.edit(view=self)
+        except:
+            pass
 
 
-class gm_track_role(commands.Cog):
+# ==============================================================================
+# Cog
+# ==============================================================================
+
+class GmGames(commands.Cog):
     def __init__(self, client):
         self.client = client
 
-    @app_commands.command(
-        name="gm_track_role",
-        description="Show last role and streaks for each player who reacted to a sign‑up message"
-    )
-    #@app_commands.checks.has_role(1126393102291185744)  # role ID
-    #@app_commands.default_permissions(administrator=True)
+    @app_commands.command(name="game_per_gm", description="Show games GMed by a specific player")
+    @app_commands.describe(gm="The GM name to look up")
     @app_commands.guilds(discord.Object(id=int(GUILD_ID)))
-    async def track_role(self, interaction: discord.Interaction, sign_up_message_id: str):
-        # Try to defer – if it fails, the interaction is dead, we can only log.
-        try:
-            await interaction.response.defer(ephemeral=False)
-        except discord.NotFound:
-            print("[ERROR] Interaction expired / not found – cannot defer.")
-            return
+    async def game_per_gm(self, interaction: discord.Interaction, gm: str):
+        await interaction.response.defer()
 
-        try:
-            sign_up_message_id = int(sign_up_message_id)
-        except ValueError:
-            await interaction.followup.send("❌ Invalid message ID.", ephemeral=True)
-            return
+        gm_lower = gm.strip().lower()
+        jogos    = get_gm_games(gm_lower)
 
-        target_channel = self.client.get_channel(int(ROUND_TABLE_ID))
-        if not target_channel:
-            await interaction.followup.send("❌ Round Table channel not found. Check ROUND_TABLE_ID.", ephemeral=True)
-            return
-
-        try:
-            message = await target_channel.fetch_message(sign_up_message_id)
-        except discord.NotFound:
-            await interaction.followup.send("❌ Message not found. Verify the ID.", ephemeral=True)
-            return
-        except discord.Forbidden:
-            await interaction.followup.send("❌ I don't have permission to read that message.", ephemeral=True)
-            return
-
-        reactions = message.reactions
-        if not reactions:
-            await interaction.followup.send("❌ This message has no reactions.", ephemeral=True)
-            return
-
-        # Collect unique human users from all reactions
-        all_user_ids = set()
-        for reaction in reactions:
-            async for user in reaction.users():
-                if not user.bot:
-                    all_user_ids.add(user.id)
-
-        if not all_user_ids:
-            await interaction.followup.send("❌ No human users reacted to this message.", ephemeral=True)
-            return
-
-        # Map Discord IDs to canonical player names (via players_ids.json)
-        players = []
-        for uid in all_user_ids:
-            nick = PLAYERS_IDS.get(str(uid))
-            if not nick:
-                continue
-            matched = _fuzzy_match_name_local(nick, nomes)
-            if matched:
-                players.append(matched)
-
-        if not players:
+        if not jogos:
             await interaction.followup.send(
-                "❌ None of the reacting users are registered in `players_ids.json`. "
-                "Check your mapping or run `/update` first.",
-                ephemeral=True
+                f"❌ No games found for **{gm}**. Run `/update` first or check the name.",
+                ephemeral=True,
             )
             return
 
-        # Fetch stats for each player
-        players_stats = []
-        for name in players:
-            stats = get_player_stats(name)
-            if stats is None:
-                await interaction.followup.send(
-                    f"❌ Stats for **{name}** not loaded. Run `/update` first.",
-                    ephemeral=True
-                )
-                return
-            players_stats.append((name, stats))
+        gm_display = next((n for n in nomes if n.lower() == gm_lower), gm.title())
 
-        players_stats.sort(key=lambda x: x[0].lower())  # alphabetical order
+        view  = GMGamesView(gm_display, jogos, interaction.user.id)
+        embed = build_summary_embed(gm_display, jogos)
 
-        # ------------------------------------------------------------------
-        # PAGE 1 – SUMMARY (only player names and page numbers)
-        # ------------------------------------------------------------------
-        summary_lines = []
-        for idx, (name, _) in enumerate(players_stats, start=2):  # page 1 = summary, players start at 2
-            summary_lines.append(f"• **{name}** → page {idx}")
+        msg = await interaction.followup.send(embed=embed, view=view)
+        try:
+            view.message = await interaction.original_response()
+        except:
+            view.message = msg
 
-        summary_embed = discord.Embed(
-            title="📋 Player Summary",
-            color=discord.Color.gold(),
-            description="\n".join(summary_lines) if summary_lines else "No players found."
-        )
-        summary_embed.set_footer(text="Use the buttons or dropdown menu below to navigate")
+    @game_per_gm.autocomplete("gm")
+    async def gm_autocomplete(self, interaction: discord.Interaction, current: str):
+        from utils_sheets import games_cache
+        current_lower = current.lower()
+        matches = [
+            app_commands.Choice(name=name.title(), value=name.lower())
+            for name in games_cache.keys()
+            if current_lower in name.lower()
+        ]
+        return matches[:25]
 
-        # ------------------------------------------------------------------
-        # INDIVIDUAL PAGES (one embed per player)
-        # ------------------------------------------------------------------
-        embeds = [summary_embed]
-        for name, stats in players_stats:
-            embed = discord.Embed(
-                title=f"📊 {name}",
-                color=discord.Color.blue(),
-                description=f"Last played: **{stats.get('date_last_played', 'Unknown')}**"
-            )
-            # Good streak
-            good_streak = stats.get('good_streak', 0)
-            last_good_role = stats.get('last_good_role', 'None')
-            last_good_date = stats.get('last_date_good', 'Unknown')
-            embed.add_field(
-                name="✨ Good Streak",
-                value=f"**{good_streak}** games\nLast role: {last_good_role} ({last_good_date})",
-                inline=True
-            )
-            # Evil streak
-            evil_streak = stats.get('evil_streak', 0)
-            last_evil_role = stats.get('last_evil_role', 'None')
-            last_evil_date = stats.get('last_date_evil', 'Unknown')
-            embed.add_field(
-                name="💀 Evil Streak",
-                value=f"**{evil_streak}** games\nLast role: {last_evil_role} ({last_evil_date})",
-                inline=True
-            )
-            embeds.append(embed)
-
-        # Send with navigation view
-        view = PaginatorView(embeds, interaction.user.id, timeout=120)
-        await interaction.followup.send(embed=embeds[0], view=view)
-
-    @track_role.error
-    async def track_role_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
-        # If the interaction was never responded to, we can still send an ephemeral message.
-        if not interaction.response.is_done():
-            if isinstance(error, app_commands.MissingRole):
-                role_id = error.missing_role
-                await interaction.response.send_message(
-                    f"❌ You need the <@&{role_id}> role to use `/gm_track_role`.",
-                    ephemeral=True
-                )
-            else:
-                await interaction.response.send_message(f"❌ An error occurred: {error}", ephemeral=True)
-        else:
-            # Interaction already responded, use followup
-            try:
-                if isinstance(error, app_commands.MissingRole):
-                    role_id = error.missing_role
-                    await interaction.followup.send(
-                        f"❌ You need the <@&{role_id}> role to use `/gm_track_role`.",
-                        ephemeral=True
-                    )
-                else:
-                    await interaction.followup.send(f"❌ An error occurred: {error}", ephemeral=True)
-            except:
-                pass  # Nothing we can do
+    @game_per_gm.error
+    async def game_per_gm_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        await interaction.response.send_message(f"❌ An error occurred: {error}", ephemeral=True)
 
 
 async def setup(client):
-    await client.add_cog(gm_track_role(client))
+    await client.add_cog(GmGames(client))

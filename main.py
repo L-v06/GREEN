@@ -6,11 +6,16 @@ from discord.ext import commands
 import sys
 import os
 
+
+
 from dotenv import load_dotenv
 load_dotenv()
 
+from utils_sheets import load_all_players, load_all_gm_games
+from utils_config import GUILD_ID
+
 discord_token = os.getenv('TOKEN')
-guild_id = int(os.getenv('SERVER_ID'))
+guild_id = GUILD_ID
 
 intents = discord.Intents.all()
 client = commands.Bot(command_prefix=':', intents=intents)
@@ -52,6 +57,7 @@ async def on_ready():
     loop = discord.utils.asyncio.get_event_loop()
     await loop.run_in_executor(None, load_all_players)
     await loop.run_in_executor(None, load_all_roles)
+    await loop.run_in_executor(None, load_all_gm_games)
     print('[bot] Cache pronto!')
 
     print('----------------------')

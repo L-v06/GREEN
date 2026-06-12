@@ -24,4 +24,9 @@ venv/
 .venv/
 env/
 cache_roles.json
-stats_cache.json
+
+stats_cache_prod.json
+cache_games_prod.json
+
+stats_cache_dev.json
+cache_games_dev.json
