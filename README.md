@@ -47,6 +47,7 @@ GREEN/
 │   ├── update_sheet.py      # Sincronização com Sheets
 │   ├── admin_stats.py       # Comandos administrativos
 │   ├── help_page.py         # Página de ajuda
+│   ├── players_relations.py # Relações de quem jogou mais com quem.
 │   ├── add_players_ids.py   # Cadastro de jogadores
 │   └── error_handler.py     # Tratamento de erros
 └── requirements.txt
