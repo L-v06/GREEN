@@ -458,8 +458,8 @@ def _fetch_gm_games(gm_name: str, total_games: int) -> list:
         time.sleep(2)
 
         # D2:J30 cobre: date(D), players(E), roles(F), [G ignorado], title(H), [I ignorado], notes(J)
-        dados    = pagina_gm.get("D2:J30")
-        co_dados = pagina_gm.get("A6:A8")
+        dados    = pagina_gm.get("D2:K30")
+        co_dados = pagina_gm.get("A6:A13")
 
         if not dados:
             continue
@@ -467,12 +467,17 @@ def _fetch_gm_games(gm_name: str, total_games: int) -> list:
         first_row = dados[0] if dados else []
 
         date  = first_row[0].strip() if len(first_row) > 0 and first_row[0].strip() else None
-        title = first_row[4].strip() if len(first_row) > 4 and first_row[4].strip() else None
-        notes = first_row[6].strip() if len(first_row) > 6 and first_row[6].strip() else None
+        title = first_row[5].strip() if len(first_row) > 5 and first_row[5].strip() else None
+        notes = first_row[7].strip() if len(first_row) > 7 and first_row[7].strip() else None
 
         # co-GMs: A6:A8, ignora "No other GM" e vazios
+
+        outcome_row = co_dados[-1] if co_dados else []
+        outcome = outcome_row[0].strip() if outcome_row and outcome_row[0].strip() else None
+
         co_gms = []
         if co_dados:
+            co_dados = co_dados[:3]
             for row in co_dados:
                 val = row[0].strip() if row and row[0].strip() else ""
                 if val and val.lower() != "no other gm":
@@ -484,6 +489,8 @@ def _fetch_gm_games(gm_name: str, total_games: int) -> list:
             if len(linha) >= 3 and linha[1].strip():
                 players[linha[1].strip()] = linha[2].strip() if len(linha) > 2 else ""
 
+        
+
         jogos.append({
             "game_number": i,
             "date": date,
@@ -491,6 +498,7 @@ def _fetch_gm_games(gm_name: str, total_games: int) -> list:
             "notes": notes,
             "co_gms": co_gms,
             "players": players,
+            "outcome": outcome,
         })
 
     return jogos
@@ -535,36 +543,62 @@ def get_gm_games(gm_name: str) -> list | None:
     return games_cache.get(gm_name.lower())
 
 
+# ==============================================================================
+# Helpers para update_game_info
+# ==============================================================================
+
+def _find_or_create_row(all_values: list, gm_name: str, game_number: int) -> int:
+    gm_lower = gm_name.strip().lower()
+    last_data_row = 1  # começa no cabeçalho
+
+    for i, row in enumerate(all_values):
+        if i == 0:
+            continue  # pula cabeçalho
+        col_m = row[12].strip().lower() if len(row) > 12 else ""
+        col_n = row[13].strip()         if len(row) > 13 else ""
+
+        # se tem dado na coluna M, atualiza o último row com dado
+        if col_m:
+            last_data_row = i + 1
+
+        # se encontrou a linha exata, retorna ela
+        if col_m == gm_lower and col_n == str(game_number):
+            return i + 1
+
+    # não encontrou — escreve logo após o último dado
+    return last_data_row + 1
+
+
+def _write_game_info_to_table(gm_name: str, game_number: int, title: str | None, notes: str | None):
+    """Escreve/atualiza a linha em O:R da tabela GM Game Finder."""
+    all_values = pagina_gm.get_all_values()
+    row_idx    = _find_or_create_row(all_values, gm_name, game_number)
+    row_data   = [gm_name, str(game_number), title or "", notes or ""]
+    pagina_gm.update(f"M{row_idx}:P{row_idx}", [row_data], value_input_option="USER_ENTERED")
+    print(f"[sheets] Table updated → row {row_idx} | {gm_name} #{game_number}")
+
+
+def _update_cache_entry(key: str, num: int, title: str | None, notes: str | None):
+    if key not in games_cache:
+        return
+    for jogo in games_cache[key]:
+        if jogo["game_number"] == num:
+            if title is not None:
+                jogo["title"] = title or None
+            if notes is not None:
+                jogo["notes"] = notes or None
+            break
+
+
 def update_game_info(gm_name: str, game_number: int, title: str | None, notes: str | None):
-    
-
-    def _write_to_sheet(name: str, num: int, t: str | None, n: str | None):
-        pagina_gm.update([[name]], "A2")
-        pagina_gm.update([[num]], "B2")
-        time.sleep(1)
-        if t is not None:
-            pagina_gm.update([[t]], "H2")
-        if n is not None:
-            pagina_gm.update([[n]], "J2")
-
-    def _update_cache_entry(key: str, num: int, t: str | None, n: str | None):
-        if key not in games_cache:
-            return
-        for jogo in games_cache[key]:
-            if jogo["game_number"] == num:
-                if t is not None:
-                    jogo["title"] = t or None
-                if n is not None:
-                    jogo["notes"] = n or None
-                break
 
     # salva no GM principal
-    _write_to_sheet(gm_name, game_number, title, notes)
+    _write_game_info_to_table(gm_name, game_number, title, notes)
     _update_cache_entry(gm_name.lower(), game_number, title, notes)
     print(f"[sheets] Updated → {gm_name} #{game_number} | title={title} | notes={notes}")
 
-    # propaga para co-GMs — busca pelo mesmo jogo (mesma data)
-    key_main = gm_name.lower()
+    # propaga para co-GMs pela mesma data
+    key_main    = gm_name.lower()
     source_jogo = next(
         (j for j in games_cache.get(key_main, []) if j["game_number"] == game_number),
         None,
@@ -573,15 +607,16 @@ def update_game_info(gm_name: str, game_number: int, title: str | None, notes: s
     if source_jogo and source_jogo.get("co_gms"):
         source_date = source_jogo.get("date")
         for co_gm in source_jogo["co_gms"]:
-            co_key = co_gm.lower()
-            co_jogos = games_cache.get(co_key, [])
-            # encontra o jogo do co-GM pela mesma data
-            co_jogo = next((j for j in co_jogos if j.get("date") == source_date), None)
+            co_key  = co_gm.lower()
+            co_jogo = next(
+                (j for j in games_cache.get(co_key, []) if j.get("date") == source_date),
+                None,
+            )
             if co_jogo is None:
                 print(f"[sheets] Co-GM {co_gm}: jogo com date={source_date} não encontrado no cache")
                 continue
             co_num = co_jogo["game_number"]
-            _write_to_sheet(co_gm, co_num, title, notes)
+            _write_game_info_to_table(co_gm, co_num, title, notes)
             _update_cache_entry(co_key, co_num, title, notes)
             print(f"[sheets] Propagated → {co_gm} #{co_num}")
 

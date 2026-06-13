@@ -65,10 +65,30 @@ def build_game_embed(gm_name: str, jogo: dict, current: int, total: int) -> disc
     title   = jogo.get("title") or "no title"
     notes   = jogo.get("notes")
     players = jogo.get("players", {})
+    outcome = jogo.get("outcome")
+
+    outcome_lower = outcome.strip().lower() if outcome else ""
+
+
+    if outcome_lower == "evil wins":
+        color = 0xC0392B      # vermelho
+    elif outcome_lower == "good wins":
+        color = 0x2E86C1      # azul
+    elif outcome_lower == "gawain wins":
+        color = 0xF1948A      # rosa
+    elif outcome_lower == "nimue wins":
+        color = 0x85C1E9      # azul clarinho
+    elif outcome_lower in ("everybody wins", "everybody loses"):
+        color = 0x6C3483      # roxo escuro
+    else:
+        color = 0x95A5A6      # cinza
+
+
+
 
     e = discord.Embed(
         title=f"🎲 {gm_name}  •  Game #{num} — {title}",
-        color=0xD4AF37,
+        color=color,
     )
     co_gms = jogo.get("co_gms", [])
 
@@ -76,8 +96,8 @@ def build_game_embed(gm_name: str, jogo: dict, current: int, total: int) -> disc
     if co_gms:
         e.add_field(name="💚 Co-GMs", value=", ".join(co_gms), inline=False)
     if notes:
-        e.add_field(name="📝 Notes", value=notes, inline=False)
-    e.add_field(name="👥 Players & Roles", value=_format_players(players), inline=False)
+        e.add_field(name=" Notes", value=notes, inline=False)
+    e.add_field(name=" Players & Roles", value=_format_players(players), inline=False)
     e.set_footer(text=f"Game {current}/{total}  •  {gm_name}")
     return e
 
@@ -300,6 +320,26 @@ class GMGamesView(View):
         if interaction.user.id != self.author_id:
             await interaction.response.send_message("❌ Not your command.", ephemeral=True)
             return
+
+        # carrega players_ids e checa se o usuário é GM do jogo atual
+        import json
+        with open("players_ids.json", "r", encoding="utf-8") as f:
+            players_ids = json.load(f)
+
+        user_name = players_ids.get(str(interaction.user.id), "").lower()
+        gm_lower  = self.gm_name.lower()
+        jogo      = self.jogos[self.current_game]
+        co_gms    = [c.lower() for c in jogo.get("co_gms", [])]
+
+        is_authorized = (user_name == gm_lower) or (user_name in co_gms)
+
+        if not is_authorized:
+            await interaction.response.send_message(
+                "❌ You can only edit your own games or games you GMed with someone else!",
+                ephemeral=True,
+            )
+            return
+
         await interaction.response.send_modal(EditGameModal(self))
 
     async def previous_game(self, interaction: discord.Interaction):
