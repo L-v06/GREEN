@@ -23,6 +23,7 @@ BOT_CONFIG_FILE = f"bot_config_{_MODE}.json"
 
 CACHE_FILE       = f"stats_cache_{_MODE}.json"
 CACHE_GAMES_FILE = f"cache_games_{_MODE}.json"
+CACHE_ROLES_FILE = f"role_cache_{_MODE}.json"
 
 
 # ==============================================================================

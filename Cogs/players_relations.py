@@ -68,8 +68,9 @@ def build_relation_pages(name: str, stats: dict) -> list[discord.Embed]:
     gawain_good_lost     = _safe_int(s.get("gawain_good_lost"))
     good_won             = _safe_int(s.get("good_games_won"))
     good_lost            = _safe_int(s.get("good_games_lost"))
+    everyone_wins_game   = _safe_int(s.get("everyone_wins_games"))
 
-    total_good = good_won + good_lost + gawain_won + nimue_win_good + nimue_Good_lost + gawain_good_lost
+    total_good = good_won + good_lost + gawain_won + nimue_win_good + nimue_Good_lost + gawain_good_lost + everyone_wins_game
 
 
     gawain_evil_lost     = _safe_int(s.get("gawain_evil_lost"))

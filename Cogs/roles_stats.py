@@ -9,7 +9,7 @@ from utils_graphs import GOOD_ROLES, EVIL_ROLES
 
 
 # ==============================================================================
-# Helpers (unchanged)
+# Helpers
 # ==============================================================================
 
 GOOD_ROLES_SET = {r.lower() for r in GOOD_ROLES}
@@ -19,8 +19,8 @@ IGNORED_PLAYERS = {"Null", "Emma"}
 
 def _role_color(role_name: str) -> int:
     if role_name.lower() in EVIL_ROLES_SET:
-        return 0xe74c3c  # vermelho
-    return 0x2ecc71      # verde
+        return 0xe74c3c
+    return 0x2ecc71
 
 def _safe_int(v) -> int:
     try:
@@ -33,59 +33,116 @@ def _pct(won: int, total: int) -> str:
         return "0%"
     return f"{(won / total * 100):.1f}%"
 
-def _names_list(names: list) -> str:
-    if not names:
-        return "—"
-    return "\n".join(f"• {n}" for n in names)
+
+def _games_block(single: int, duo: int, total: int) -> str:
+    """
+    Single      Duo       Total
+       xx        xx         xx
+    """
+    w = 10
+    header = f"{'Single'.center(w)}  {'Duo'.center(w)}  {'Total'.center(w)}"
+    values = f"{str(single).center(w)}  {str(duo).center(w)}  {str(total).center(w)}"
+    return "```\n" + header + "\n" + values + "\n```"
+
+
+def _results_block(won: int, lost: int, ratio: str) -> str:
+    """
+    Won        Lost       Ratio
+     xx         xx         xx%
+    """
+    w = 10
+    header = f"{'Won'.center(w)}  {'Lost'.center(w)}  {'Ratio'.center(w)}"
+    values = f"{str(won).center(w)}  {str(lost).center(w)}  {ratio.center(w)}"
+    return "```\n" + header + "\n" + values + "\n```"
+
+
+def _results_block2(gawain: int, nimue: int, april: int) -> str:
+    """Retorna tabela formatada com os especiais (Gawain, Nimue, April Fools)."""
+    header = f"{'Gawain':<10} {'Nimue':<10} {'April Fools':<10}"
+    values = f"{gawain:<10} {nimue:<10} {april:<10}"
+    return f"```\n{header}\n{values}\n```"
+
+
+def _players_block(most: list, least: list, max_items: int = 5) -> str:
+    """Gera um bloco de texto com listas de mais e menos jogados, sem emojis."""
+    lines = []
+    
+    lines.append("**Most played:**")
+    if most:
+        for name in most[:max_items]:
+            lines.append(f"- {name}")
+    else:
+        lines.append("*No data*")
+    
+    lines.append("")
+    
+    lines.append("**Least played:**")
+    if least:
+        for name in least[:max_items]:
+            lines.append(f"- {name}")
+    else:
+        lines.append("*No data*")
+    
+    return "\n".join(lines)
 
 
 # ==============================================================================
 # Builds all pages for a SINGLE role
-# (now accepts an optional custom footer prefix)
 # ==============================================================================
 
+def _sep(embed: discord.Embed):
+    embed.add_field(name="\u200b", value="\u200b", inline=False)
+
+    
 def build_role_pages(role_name: str, stats: dict, custom_footer_prefix: str = None) -> list[discord.Embed]:
     s = stats
     color = _role_color(role_name)
     pages = []
 
-    how_many   = _safe_int(s.get("how_many_played"))
-    won        = _safe_int(s.get("games_won"))
-    lost       = _safe_int(s.get("games_lost"))
-    total      = won + lost
-    win_pct    = _pct(won, total)
-    duo        = _safe_int(s.get("duo_games"))
-    april      = _safe_int(s.get("april_fools"))
-    killed     = _safe_int(s.get("killed_how_many"))
-    oops       = _safe_int(s.get("oops_all_pen"))
-    gawain     = _safe_int(s.get("gawain_loss"))
-    nimue      = _safe_int(s.get("nimue_tie_loss"))
-    p_most     = s.get("player_most", [])
-    p_least    = s.get("player_least", [])
+    # Dados brutos da planilha
+    single = _safe_int(s.get("how_many_played"))   # a planilha chama de "total" mas é single
+    won    = _safe_int(s.get("games_won"))
+    lost   = _safe_int(s.get("games_lost"))
+    total_win_loss = won + lost
+    win_pct = _pct(won, total_win_loss)
+    duo    = _safe_int(s.get("duo_games"))
+    total_games = single + duo                     # Total real de partidas (single + duo)
+    april  = _safe_int(s.get("april_fools"))
+    killed = _safe_int(s.get("killed_how_many"))
+    oops   = _safe_int(s.get("oops_all_pen"))
+    gawain = _safe_int(s.get("gawain_loss"))
+    nimue  = _safe_int(s.get("nimue_tie_loss"))
 
-    p_most = [name for name in p_most if name not in IGNORED_PLAYERS]
-    p_least = [name for name in p_least if name not in IGNORED_PLAYERS]
+    # Players mais/menos frequentes
+    p_most  = [n for n in s.get("player_most",  []) if n not in IGNORED_PLAYERS]
+    p_least = [n for n in s.get("player_least", []) if n not in IGNORED_PLAYERS]
 
+    side = "Evil" if role_name.lower() in EVIL_ROLES_SET else "Good"
+
+    # ------------------------------------------------------------------
     # PAGE 1 — Overview
+    # ------------------------------------------------------------------
     e1 = discord.Embed(
-        title=f"⚔️ {role_name}",
+        title=f" ✨ {role_name}",
         color=color,
     )
-    side = "Evil" if role_name.lower() in EVIL_ROLES_SET else "Good"
-    e1.description = f"**Side:** {'💀 Evil' if side == 'Evil' else '✨ Good'}"
+    e1.description = f"**Side:** {' Evil' if side == 'Evil' else 'Good'}"
 
+    # Games Played (Single, Duo, Total)
     e1.add_field(
-        name="🎮 Games Played",
-        value=f"**{how_many}** total\n**{duo}** duo games",
-        inline=True,
+        name="Games Played",
+        value=_games_block(single, duo, total_games),
+        inline=False,
     )
-    e1.add_field(
-        name="📊 Results",
-        value=f"Won: **{won}**\nLost: **{lost}**\nWin rate: **{win_pct}**",
-        inline=True,
-    )
-    e1.add_field(name="\u200b", value="\u200b", inline=False)
 
+    # Results (Won / Lost / Ratio)
+    e1.add_field(
+        name="Results",
+        value=_results_block(won, lost, win_pct),
+        inline=False,
+    )
+
+    # Specials (só aparece se tiver algo)
     specials = []
     if gawain > 0:
         specials.append(f"Gawain loss: **{gawain}**")
@@ -93,56 +150,62 @@ def build_role_pages(role_name: str, stats: dict, custom_footer_prefix: str = No
         specials.append(f"Nimue tie/loss: **{nimue}**")
     if april > 0:
         specials.append(f"April Fools: **{april}**")
-    if oops > 0:
-        specials.append(f"Oops All Pen: **{oops}**")
-
     if specials:
-        e1.add_field(name="✨ Special Games", value="\n".join(specials), inline=False)
+        e1.add_field(
+            name="Special Games",
+            value=_results_block2(gawain, nimue, april),
+            inline=False,
+        )
+    if oops > 0:
+        e1.add_field(name="Oops", value=f" All penpin game: {oops}", inline=False)
 
-    e1.add_field(name="☠️ Killed by vote", value=f"**{killed}** times", inline=False)
+    e1.add_field(name=" Killed by vote", value=f"**{killed}** times", inline=False)
+
     pages.append(e1)
 
+    # ------------------------------------------------------------------
     # PAGE 2 — Players
+    # ------------------------------------------------------------------
     e2 = discord.Embed(
-        title=f"⚔️ {role_name}  —  Players",
+        title=f" {role_name}  —  Players",
         color=color,
     )
+
     e2.add_field(
-        name="🏆 Played Most",
-        value=_names_list(p_most) if p_most else "—",
-        inline=True,
+        name="Players",
+        value=_players_block(p_most, p_least),
+        inline=False,
     )
-    e2.add_field(
-        name="📉 Played Least",
-        value=_names_list(p_least) if p_least else "—",
-        inline=True,
-    )
+
     pages.append(e2)
 
-    # Footers: either custom prefix (for multi-role) or default single-role labels
+    # ------------------------------------------------------------------
+    # Footers
+    # ------------------------------------------------------------------
     total_pages = len(pages)
     labels = ["Overview", "Players"]
     for i, emb in enumerate(pages):
+        label = labels[i] if i < len(labels) else f"Page {i+1}"
         if custom_footer_prefix:
-            emb.set_footer(text=f"{custom_footer_prefix}  •  Page {i+1}/{total_pages}  •  {labels[i]}  •  ⬅️ ➡️ to navigate")
+            emb.set_footer(text=f"{custom_footer_prefix}  •  Page {i+1}/{total_pages}  •  {label}  •  ⬅️ ➡️ to navigate")
         else:
-            emb.set_footer(text=f"Page {i+1}/{total_pages}  •  {labels[i]}  •  ⬅️ ➡️ to navigate")
+            emb.set_footer(text=f"Page {i+1}/{total_pages}  •  {label}  •  ⬅️ ➡️ to navigate")
 
     return pages
 
 
 # ==============================================================================
-# Paginator View for single-role command (unchanged)
+# Paginator View — single role
 # ==============================================================================
 
 class RolePaginatorView(View):
     def __init__(self, embeds: list, author_id: int, timeout=120):
         super().__init__(timeout=timeout)
-        self.embeds = embeds
+        self.embeds       = embeds
         self.current_page = 0
-        self.total_pages = len(embeds)
-        self.author_id = author_id
-        self.message = None
+        self.total_pages  = len(embeds)
+        self.author_id    = author_id
+        self.message      = None
 
         self.prev_button = Button(emoji="⬅️", style=discord.ButtonStyle.secondary)
         self.prev_button.callback = self.previous_page
@@ -151,16 +214,6 @@ class RolePaginatorView(View):
         self.next_button = Button(emoji="➡️", style=discord.ButtonStyle.secondary)
         self.next_button.callback = self.next_page
         self.add_item(self.next_button)
-
-        options = []
-        labels = ["Overview", "Players"]
-        for i in range(len(embeds)):
-            label = labels[i] if i < len(labels) else f"Page {i+1}"
-            options.append(discord.SelectOption(label=label, value=str(i)))
-
-        self.select_menu = Select(placeholder="Jump to page...", options=options, row=1)
-        self.select_menu.callback = self.jump_to_page
-        self.add_item(self.select_menu)
 
     async def _update(self, interaction: discord.Interaction):
         embed = self.embeds[self.current_page]
@@ -184,15 +237,6 @@ class RolePaginatorView(View):
             self.current_page += 1
             await self._update(interaction)
 
-    async def jump_to_page(self, interaction: discord.Interaction):
-        if interaction.user.id != self.author_id:
-            await interaction.response.send_message("❌ You are not the command author.", ephemeral=True)
-            return
-        selected = int(self.select_menu.values[0])
-        if 0 <= selected < self.total_pages:
-            self.current_page = selected
-            await self._update(interaction)
-
     async def on_timeout(self):
         for item in self.children:
             item.disabled = True
@@ -203,21 +247,17 @@ class RolePaginatorView(View):
 
 
 # ==============================================================================
-# Paginator View for multi-role commands (good / evil)
+# Paginator View — multi-role (good / evil)
 # ==============================================================================
 
 class MultiRolePaginatorView(View):
     def __init__(self, embeds: list, role_page_map: dict, author_id: int, timeout=180):
-        """
-        embeds: full list of embeds (summary + all role pages).
-        role_page_map: dict mapping role_name -> 0-based index of its first page.
-        """
         super().__init__(timeout=timeout)
-        self.embeds = embeds
+        self.embeds       = embeds
         self.current_page = 0
-        self.total_pages = len(embeds)
-        self.author_id = author_id
-        self.message = None
+        self.total_pages  = len(embeds)
+        self.author_id    = author_id
+        self.message      = None
 
         self.prev_button = Button(emoji="⬅️", style=discord.ButtonStyle.secondary)
         self.prev_button.callback = self.previous_page
@@ -227,11 +267,10 @@ class MultiRolePaginatorView(View):
         self.next_button.callback = self.next_page
         self.add_item(self.next_button)
 
-        options = []
-        for role_name, start_idx in role_page_map.items():
-            label = role_name
-            options.append(discord.SelectOption(label=label, value=str(start_idx)))
-
+        options = [
+            discord.SelectOption(label=role_name, value=str(start_idx))
+            for role_name, start_idx in role_page_map.items()
+        ]
         self.select_menu = Select(placeholder="Jump to a role...", options=options, row=1)
         self.select_menu.callback = self.jump_to_page
         self.add_item(self.select_menu)
@@ -281,82 +320,51 @@ class MultiRolePaginatorView(View):
 # ==============================================================================
 
 def build_side_pages(role_list: list, side_name: str, side_emoji: str, color: int):
-    """
-    Returns (embeds, role_page_map)
-      - embeds: [summary_page, role1_page1, role1_page2, role2_page1, ...]
-      - role_page_map: {role_name: 0-based start page idx}
-    """
-    embeds = []
+    embeds       = []
     role_page_map = {}
 
-    # ---------- Summary page ----------
+    # Constrói as páginas de cada role primeiro
+    for role_name in role_list:
+        stats = get_role_stats(role_name)
+        if stats is None:
+            continue
+
+        role_pages = build_role_pages(role_name, stats, custom_footer_prefix=role_name)
+        role_page_map[role_name] = len(embeds)  # índice antes de adicionar summary
+        embeds.extend(role_pages)
+
+    # Ajusta índices (+1 por causa do summary que vai na frente)
+    adjusted_map = {role: idx + 1 for role, idx in role_page_map.items()}
+
+    # Summary page
     summary = discord.Embed(
         title=f"{side_emoji} {side_name} Roles — Summary",
         color=color,
         description="Use the **Select** menu to jump directly to a role.\n"
                     "⬅️ ➡️ to navigate pages.",
     )
-
-    lines = []
-    for idx, role_name in enumerate(role_list):
-        stats = get_role_stats(role_name)
-        if stats is None:
-            # Skip roles without stats; we won't add them to the summary.
-            continue
-
-        # Build role's own pages (prefix with the role name for the footer)
-        prefix = f"{role_name}"
-        role_pages = build_role_pages(role_name, stats, custom_footer_prefix=prefix)
-
-        # Record the starting index of this role's first page in the full list
-        start_idx = len(embeds)  # summary hasn't been added yet, but we add after.
-        # We'll store a temporary tuple and resolve after summary is finalised.
-        role_page_map[role_name] = start_idx  # but this is before adding summary, so it will be off by 1 later.
-        # Fix later.
-
-        # Add the role's pages to the list
-        embeds.extend(role_pages)
-
-  
-    adjusted_role_page_map = {}
-    for role, idx in role_page_map.items():
-        adjusted_role_page_map[role] = idx + 1  # because summary will be inserted at index 0
-
-    # Now build the summary lines with the adjusted indices (1-based page numbers for display)
-    lines = []
-    for role, start_idx in adjusted_role_page_map.items():
-        page_number = start_idx + 1  # 1-based for user display
-        lines.append(f"• **{role}** – page {page_number}")
-
-    if not lines:
-        summary.description = "No role stats loaded yet. Run `/update` first."
-    else:
+    lines = [f"• **{role}** — page {idx + 1}" for role, idx in adjusted_map.items()]
+    if lines:
         summary.add_field(name="Roles", value="\n".join(lines), inline=False)
+    else:
+        summary.description = "No role stats loaded yet. Run `/update` first."
 
-    # Insert summary at the beginning
     embeds.insert(0, summary)
 
-    # Now adjust the footers of all embeds to show correct global page numbers
+    # Corrige footers com numeração global
     total = len(embeds)
     for i, emb in enumerate(embeds):
-     
         if i == 0:
             emb.set_footer(text=f"Page {i+1}/{total}  •  Summary  •  ⬅️ ➡️ to navigate")
         else:
-            
-            old_footer = emb.footer.text
-          
-            parts = old_footer.split("  •  ")
+            old = emb.footer.text
+            parts = old.split("  •  ")
             if len(parts) >= 4:
-                # parts[0] = RoleName, parts[1] = "Page X/2", parts[2] = Label, parts[3] = navigation
-                new_page = f"Page {i+1}/{total}"
-                new_footer = f"{parts[0]}  •  {new_page}  •  {parts[2]}  •  {parts[3]}"
-                emb.set_footer(text=new_footer)
+                emb.set_footer(text=f"{parts[0]}  •  Page {i+1}/{total}  •  {parts[2]}  •  {parts[3]}")
             else:
-                # fallback
-                emb.set_footer(text=f"Page {i+1}/{total}  •  {old_footer}")
+                emb.set_footer(text=f"Page {i+1}/{total}  •  {old}")
 
-    return embeds, adjusted_role_page_map
+    return embeds, adjusted_map
 
 
 # ==============================================================================
@@ -367,9 +375,6 @@ class RoleStats(commands.Cog):
     def __init__(self, client):
         self.client = client
 
-    # ----------------------------------------------------------------
-    # Original single-role command (unchanged)
-    # ----------------------------------------------------------------
     @app_commands.command(name="role_stats", description="Show stats for a specific Avalon role")
     @app_commands.describe(role="The role name to look up")
     @app_commands.guilds(discord.Object(id=int(GUILD_ID)))
@@ -377,16 +382,9 @@ class RoleStats(commands.Cog):
         await interaction.response.defer()
 
         role_lower = role.strip().lower()
-        matched = None
-        for r in ALL_ROLES:
-            if r.lower() == role_lower:
-                matched = r
-                break
+        matched = next((r for r in ALL_ROLES if r.lower() == role_lower), None)
         if not matched:
-            for r in ALL_ROLES:
-                if role_lower in r.lower():
-                    matched = r
-                    break
+            matched = next((r for r in ALL_ROLES if role_lower in r.lower()), None)
 
         if not matched:
             role_list = "\n".join(f"• {r}" for r in ALL_ROLES)
@@ -404,7 +402,7 @@ class RoleStats(commands.Cog):
             )
             return
 
-        embeds = build_role_pages(matched, stats)  # no custom prefix
+        embeds = build_role_pages(matched, stats)
         view = RolePaginatorView(embeds, interaction.user.id, timeout=120)
         view.prev_button.disabled = True
 
@@ -417,35 +415,23 @@ class RoleStats(commands.Cog):
     @role_stats.autocomplete("role")
     async def role_autocomplete(self, interaction: discord.Interaction, current: str):
         current_lower = current.lower()
-        matches = [
+        return [
             app_commands.Choice(name=r, value=r)
-            for r in ALL_ROLES
-            if current_lower in r.lower()
-        ]
-        return matches[:25]
+            for r in ALL_ROLES if current_lower in r.lower()
+        ][:25]
 
     @role_stats.error
     async def role_stats_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         await interaction.response.send_message(f"❌ An error occurred: {error}", ephemeral=True)
 
-    # ----------------------------------------------------------------
-    # Good roles command
-    # ----------------------------------------------------------------
     @app_commands.command(name="role_stats_good", description="Show stats for all Good roles in one paginated embed")
     @app_commands.guilds(discord.Object(id=int(GUILD_ID)))
     async def role_stats_good(self, interaction: discord.Interaction):
         await interaction.response.defer()
-
-        embeds, role_map = build_side_pages(
-            GOOD_ROLES,
-            side_name="Good",
-            side_emoji="✨",
-            color=0x2ecc71,
-        )
+        embeds, role_map = build_side_pages(GOOD_ROLES, "Good", 0x2ecc71)
         if not embeds:
             await interaction.followup.send("No Good role stats available. Run `/update` first.", ephemeral=True)
             return
-
         view = MultiRolePaginatorView(embeds, role_map, interaction.user.id, timeout=180)
         view.prev_button.disabled = True
         msg = await interaction.followup.send(embed=embeds[0], view=view)
@@ -454,24 +440,14 @@ class RoleStats(commands.Cog):
         except:
             view.message = msg
 
-    # ----------------------------------------------------------------
-    # Evil roles command
-    # ----------------------------------------------------------------
     @app_commands.command(name="role_stats_evil", description="Show stats for all Evil roles in one paginated embed")
     @app_commands.guilds(discord.Object(id=int(GUILD_ID)))
     async def role_stats_evil(self, interaction: discord.Interaction):
         await interaction.response.defer()
-
-        embeds, role_map = build_side_pages(
-            EVIL_ROLES,
-            side_name="Evil",
-            side_emoji="💀",
-            color=0xe74c3c,
-        )
+        embeds, role_map = build_side_pages(EVIL_ROLES, "Evil", "👿", 0xe74c3c)
         if not embeds:
             await interaction.followup.send("No Evil role stats available. Run `/update` first.", ephemeral=True)
             return
-
         view = MultiRolePaginatorView(embeds, role_map, interaction.user.id, timeout=180)
         view.prev_button.disabled = True
         msg = await interaction.followup.send(embed=embeds[0], view=view)

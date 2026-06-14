@@ -1,0 +1,706 @@
+{
+    "assassin": {
+        "how_many_played": 95,
+        "duo_games": 13,
+        "april_fools": 1,
+        "games_won": 47,
+        "games_lost": 41,
+        "gawain_loss": 5,
+        "nimue_tie_loss": 1,
+        "killed_how_many": 11,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Blue",
+            "Kat",
+            "Aria"
+        ],
+        "player_least": [
+            "Abrams",
+            "Evy",
+            "Aura"
+        ]
+    },
+    "bertilak": {
+        "how_many_played": 3,
+        "duo_games": 0,
+        "april_fools": 0,
+        "games_won": 1,
+        "games_lost": 2,
+        "gawain_loss": 0,
+        "nimue_tie_loss": 0,
+        "killed_how_many": 0,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Sky",
+            "Sue",
+            "Classy"
+        ],
+        "player_least": [
+            "Sky",
+            "Sue",
+            "Classy"
+        ]
+    },
+    "dagonet": {
+        "how_many_played": 19,
+        "duo_games": 2,
+        "april_fools": 1,
+        "games_won": 6,
+        "games_lost": 9,
+        "gawain_loss": 2,
+        "nimue_tie_loss": 1,
+        "killed_how_many": 0,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Kat"
+        ],
+        "player_least": [
+            "Meagan",
+            "Goose",
+            "Gracie",
+            "Sky"
+        ]
+    },
+    "lucius": {
+        "how_many_played": 17,
+        "duo_games": 3,
+        "april_fools": 0,
+        "games_won": 8,
+        "games_lost": 8,
+        "gawain_loss": 1,
+        "nimue_tie_loss": 0,
+        "killed_how_many": 2,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Kat"
+        ],
+        "player_least": [
+            "Sue",
+            "Sky",
+            "Nix",
+            "Ash"
+        ]
+    },
+    "maduc": {
+        "how_many_played": 2,
+        "duo_games": 0,
+        "april_fools": 0,
+        "games_won": 1,
+        "games_lost": 1,
+        "gawain_loss": 0,
+        "nimue_tie_loss": 0,
+        "killed_how_many": 0,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Nix",
+            "Saige"
+        ],
+        "player_least": [
+            "Nix",
+            "Saige"
+        ]
+    },
+    "mark": {
+        "how_many_played": 6,
+        "duo_games": 1,
+        "april_fools": 0,
+        "games_won": 1,
+        "games_lost": 4,
+        "gawain_loss": 0,
+        "nimue_tie_loss": 1,
+        "killed_how_many": 0,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Meagan"
+        ],
+        "player_least": [
+            "Gremlin",
+            "Kat",
+            "Dyloune",
+            "Nix"
+        ]
+    },
+    "meleagant": {
+        "how_many_played": 15,
+        "duo_games": 4,
+        "april_fools": 0,
+        "games_won": 8,
+        "games_lost": 6,
+        "gawain_loss": 0,
+        "nimue_tie_loss": 0,
+        "killed_how_many": 0,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Nix",
+            "Saige",
+            "Ash"
+        ],
+        "player_least": [
+            "Blue",
+            "Aria",
+            "Gremlin",
+            "Goose"
+        ]
+    },
+    "mordred": {
+        "how_many_played": 20,
+        "duo_games": 0,
+        "april_fools": 1,
+        "games_won": 8,
+        "games_lost": 10,
+        "gawain_loss": 1,
+        "nimue_tie_loss": 0,
+        "killed_how_many": 0,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Ghost",
+            "Bucky",
+            "Aura",
+            "Kat"
+        ],
+        "player_least": [
+            "Saige",
+            "Jacob",
+            "Lilly",
+            "Alex"
+        ]
+    },
+    "morgana": {
+        "how_many_played": 9,
+        "duo_games": 2,
+        "april_fools": 0,
+        "games_won": 4,
+        "games_lost": 5,
+        "gawain_loss": 0,
+        "nimue_tie_loss": 0,
+        "killed_how_many": 1,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Ghost",
+            "Emma",
+            "Saige",
+            "Bucky"
+        ],
+        "player_least": [
+            "Ghost",
+            "Emma",
+            "Saige",
+            "Bucky"
+        ]
+    },
+    "oberon": {
+        "how_many_played": 30,
+        "duo_games": 3,
+        "april_fools": 1,
+        "games_won": 16,
+        "games_lost": 11,
+        "gawain_loss": 2,
+        "nimue_tie_loss": 0,
+        "killed_how_many": 1,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Kat",
+            "Aura",
+            "Sky",
+            "Crow"
+        ],
+        "player_least": [
+            "Anya",
+            "Jacob",
+            "Saige",
+            "Evy"
+        ]
+    },
+    "puck": {
+        "how_many_played": 9,
+        "duo_games": 0,
+        "april_fools": 0,
+        "games_won": 4,
+        "games_lost": 3,
+        "gawain_loss": 1,
+        "nimue_tie_loss": 1,
+        "killed_how_many": 0,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Blue",
+            "Aura",
+            "Gabe",
+            "Ash"
+        ],
+        "player_least": [
+            "Blue",
+            "Aura",
+            "Gabe",
+            "Ash"
+        ]
+    },
+    "queen mab": {
+        "how_many_played": 3,
+        "duo_games": 0,
+        "april_fools": 0,
+        "games_won": 1,
+        "games_lost": 2,
+        "gawain_loss": 0,
+        "nimue_tie_loss": 0,
+        "killed_how_many": 0,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Aria"
+        ],
+        "player_least": [
+            "Meagan"
+        ]
+    },
+    "vortigern": {
+        "how_many_played": 17,
+        "duo_games": 1,
+        "april_fools": 0,
+        "games_won": 7,
+        "games_lost": 7,
+        "gawain_loss": 1,
+        "nimue_tie_loss": 1,
+        "killed_how_many": 0,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Meagan"
+        ],
+        "player_least": [
+            "Evy",
+            "Emma",
+            "Beepo",
+            "Gremlin"
+        ]
+    },
+    "minion": {
+        "how_many_played": 34,
+        "duo_games": 0,
+        "april_fools": 0,
+        "games_won": 21,
+        "games_lost": 11,
+        "gawain_loss": 2,
+        "nimue_tie_loss": 0,
+        "killed_how_many": 4,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Blue",
+            "Aria"
+        ],
+        "player_least": [
+            "Ghost",
+            "Saige",
+            "Christina",
+            "Eliza"
+        ]
+    },
+    "bad lancelot": {
+        "how_many_played": 20,
+        "duo_games": 3,
+        "april_fools": 0,
+        "games_won": 8,
+        "games_lost": 11,
+        "gawain_loss": 1,
+        "nimue_tie_loss": 0,
+        "killed_how_many": 0,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Elle",
+            "Sky"
+        ],
+        "player_least": [
+            "Lilly",
+            "Gracie",
+            "Emma",
+            "Blue"
+        ]
+    },
+    "nimue (e)": {
+        "how_many_played": 2,
+        "duo_games": 0,
+        "april_fools": 0,
+        "games_won": 0,
+        "games_lost": 2,
+        "gawain_loss": 0,
+        "nimue_tie_loss": 0,
+        "killed_how_many": 0,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Nugget",
+            "Blue"
+        ],
+        "player_least": [
+            "Nugget",
+            "Blue"
+        ]
+    },
+    "the witch of caerlloyw": {
+        "how_many_played": 7,
+        "duo_games": 2,
+        "april_fools": 0,
+        "games_won": 4,
+        "games_lost": 3,
+        "gawain_loss": 0,
+        "nimue_tie_loss": 0,
+        "killed_how_many": 1,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Saige",
+            "Nix",
+            "Silly"
+        ],
+        "player_least": [
+            "Henry",
+            "Meagan",
+            "Nat"
+        ]
+    },
+    "merlin": {
+        "how_many_played": 95,
+        "duo_games": 9,
+        "april_fools": 0,
+        "games_won": 41,
+        "games_lost": 47,
+        "gawain_loss": 5,
+        "nimue_tie_loss": 1,
+        "killed_how_many": 21,
+        "oops_all_pen": 1,
+        "player_most": [
+            "Blue"
+        ],
+        "player_least": [
+            "Lilly",
+            "Alex",
+            "Goose"
+        ]
+    },
+    "apprentice": {
+        "how_many_played": 58,
+        "duo_games": 10,
+        "april_fools": 0,
+        "games_won": 26,
+        "games_lost": 25,
+        "gawain_loss": 4,
+        "nimue_tie_loss": 1,
+        "killed_how_many": 6,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Blue",
+            "Kat",
+            "Aria"
+        ],
+        "player_least": [
+            "Abrams",
+            "Evy",
+            "Aura",
+            "Pepper"
+        ]
+    },
+    "caelia": {
+        "how_many_played": 7,
+        "duo_games": 2,
+        "april_fools": 0,
+        "games_won": 3,
+        "games_lost": 3,
+        "gawain_loss": 1,
+        "nimue_tie_loss": 0,
+        "killed_how_many": 0,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Blue",
+            "Aria"
+        ],
+        "player_least": [
+            "Meagan",
+            "Ash",
+            "Henry",
+            "Teletubbie"
+        ]
+    },
+    "elaine": {
+        "how_many_played": 9,
+        "duo_games": 1,
+        "april_fools": 0,
+        "games_won": 5,
+        "games_lost": 3,
+        "gawain_loss": 1,
+        "nimue_tie_loss": 0,
+        "killed_how_many": 1,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Aria",
+            "Achilles"
+        ],
+        "player_least": [
+            "Saige",
+            "Nix",
+            "Pepper",
+            "Poe"
+        ]
+    },
+    "galahad": {
+        "how_many_played": 13,
+        "duo_games": 2,
+        "april_fools": 0,
+        "games_won": 5,
+        "games_lost": 7,
+        "gawain_loss": 1,
+        "nimue_tie_loss": 0,
+        "killed_how_many": 0,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Saige"
+        ],
+        "player_least": [
+            "Aura",
+            "Goose",
+            "Aria",
+            "Kat"
+        ]
+    },
+    "gawain": {
+        "how_many_played": 30,
+        "duo_games": 30,
+        "april_fools": 0,
+        "games_won": 11,
+        "games_lost": 13,
+        "gawain_loss": 5,
+        "nimue_tie_loss": 1,
+        "killed_how_many": 5,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Sky",
+            "Krista"
+        ],
+        "player_least": [
+            "null",
+            "Goose",
+            "Aura",
+            "Evy"
+        ]
+    },
+    "guinevere": {
+        "how_many_played": 3,
+        "duo_games": 0,
+        "april_fools": 0,
+        "games_won": 3,
+        "games_lost": 0,
+        "gawain_loss": 0,
+        "nimue_tie_loss": 0,
+        "killed_how_many": 0,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Silly",
+            "Crow",
+            "Henry"
+        ],
+        "player_least": [
+            "Silly",
+            "Crow",
+            "Henry"
+        ]
+    },
+    "king arthur": {
+        "how_many_played": 6,
+        "duo_games": 2,
+        "april_fools": 0,
+        "games_won": 2,
+        "games_lost": 3,
+        "gawain_loss": 1,
+        "nimue_tie_loss": 1,
+        "killed_how_many": 0,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Saige"
+        ],
+        "player_least": [
+            "Emma",
+            "Ash",
+            "Crow",
+            "Gremlin"
+        ]
+    },
+    "palamedes": {
+        "how_many_played": 16,
+        "duo_games": 1,
+        "april_fools": 0,
+        "games_won": 6,
+        "games_lost": 10,
+        "gawain_loss": 0,
+        "nimue_tie_loss": 0,
+        "killed_how_many": 2,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Crow"
+        ],
+        "player_least": [
+            "Blue",
+            "Nix",
+            "Gremlin",
+            "Shadow"
+        ]
+    },
+    "percival": {
+        "how_many_played": 62,
+        "duo_games": 6,
+        "april_fools": 0,
+        "games_won": 28,
+        "games_lost": 31,
+        "gawain_loss": 2,
+        "nimue_tie_loss": 0,
+        "killed_how_many": 8,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Saige"
+        ],
+        "player_least": [
+            "Pogue",
+            "Leila",
+            "Anya",
+            "Eliza"
+        ]
+    },
+    "sir kay": {
+        "how_many_played": 36,
+        "duo_games": 6,
+        "april_fools": 0,
+        "games_won": 14,
+        "games_lost": 20,
+        "gawain_loss": 2,
+        "nimue_tie_loss": 0,
+        "killed_how_many": 2,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Blue"
+        ],
+        "player_least": [
+            "Aura",
+            "Anya",
+            "Lilly",
+            "Kat"
+        ]
+    },
+    "loyal servant": {
+        "how_many_played": 47,
+        "duo_games": 1,
+        "april_fools": 0,
+        "games_won": 19,
+        "games_lost": 27,
+        "gawain_loss": 1,
+        "nimue_tie_loss": 0,
+        "killed_how_many": 7,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Kat"
+        ],
+        "player_least": [
+            "Ghost",
+            "null",
+            "Abrams",
+            "Dyloune"
+        ]
+    },
+    "tristan": {
+        "how_many_played": 15,
+        "duo_games": 1,
+        "april_fools": 0,
+        "games_won": 9,
+        "games_lost": 5,
+        "gawain_loss": 0,
+        "nimue_tie_loss": 1,
+        "killed_how_many": 0,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Aria",
+            "Meagan",
+            "Mars",
+            "Crow"
+        ],
+        "player_least": [
+            "Wendigo",
+            "Goose",
+            "Gracie",
+            "Blue"
+        ]
+    },
+    "iseult": {
+        "how_many_played": 15,
+        "duo_games": 0,
+        "april_fools": 0,
+        "games_won": 9,
+        "games_lost": 5,
+        "gawain_loss": 0,
+        "nimue_tie_loss": 1,
+        "killed_how_many": 1,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Silly"
+        ],
+        "player_least": [
+            "Ash",
+            "Aura",
+            "Abrams",
+            "Shadow"
+        ]
+    },
+    "lancelot": {
+        "how_many_played": 19,
+        "duo_games": 3,
+        "april_fools": 0,
+        "games_won": 11,
+        "games_lost": 7,
+        "gawain_loss": 1,
+        "nimue_tie_loss": 0,
+        "killed_how_many": 0,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Meagan"
+        ],
+        "player_least": [
+            "Leila",
+            "null",
+            "Gracie",
+            "Wendigo"
+        ]
+    },
+    "nimue (g)": {
+        "how_many_played": 10,
+        "duo_games": 10,
+        "april_fools": 0,
+        "games_won": 3,
+        "games_lost": 6,
+        "gawain_loss": 0,
+        "nimue_tie_loss": 1,
+        "killed_how_many": 1,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Aria",
+            "Sue"
+        ],
+        "player_least": [
+            "Blue",
+            "Crow",
+            "Nugget",
+            "Saige"
+        ]
+    },
+    "penpingion": {
+        "how_many_played": 25,
+        "duo_games": 4,
+        "april_fools": 0,
+        "games_won": 12,
+        "games_lost": 8,
+        "gawain_loss": 2,
+        "nimue_tie_loss": 1,
+        "killed_how_many": 1,
+        "oops_all_pen": 0,
+        "player_most": [
+            "Saige",
+            "Krista"
+        ],
+        "player_least": [
+            "Abrams",
+            "Goose",
+            "Ash",
+            "Evy"
+        ]
+    }
+}

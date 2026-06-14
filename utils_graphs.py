@@ -73,33 +73,32 @@ def first_role(role_str):
     return role_str
 
 def make_page1_graph(stats: dict) -> io.BytesIO:
-    wins     =    (_safe_int(stats.get("good_games_won"))
-                 + _safe_int(stats.get("evil_games_won"))
-                 + _safe_int(stats.get("gawain_games_won"))
-                 + _safe_int(stats.get("nimue_games_won"))
-                 
-                 )
+    wins  = (_safe_int(stats.get("good_games_won"))
+           + _safe_int(stats.get("evil_games_won"))
+           + _safe_int(stats.get("gawain_games_won"))
+           + _safe_int(stats.get("everyone_wins_games"))
+           + _safe_int(stats.get("nimue_games_won")))
 
-    losses   =    (_safe_int(stats.get("good_games_lost"))
-                 + _safe_int(stats.get("evil_games_lost"))
-                 + _safe_int(stats.get("gawain_games_lost"))
-                 + _safe_int(stats.get("nimue_games_lost"))
-                 )
+    losses = (_safe_int(stats.get("good_games_lost"))
+            + _safe_int(stats.get("evil_games_lost"))
+            + _safe_int(stats.get("gawain_games_lost"))
+            + _safe_int(stats.get("nimue_games_lost")))
 
-    evil_total =  (_safe_int(stats.get("evil_games_won"))
-                 + _safe_int(stats.get("evil_games_lost"))
-                 + _safe_int(stats.get("gawain_evil_lost"))
-                 + _safe_int(stats.get("nimue_evil_lost"))
-                 + _safe_int(stats.get("nimue_win_evil"))
+    evil_total = (_safe_int(stats.get("evil_games_won"))
+                + _safe_int(stats.get("evil_games_lost"))
+                + _safe_int(stats.get("gawain_evil_lost"))
+                + _safe_int(stats.get("nimue_evil_lost"))
+                + _safe_int(stats.get("nimue_win_evil"))
 
                 )
     
-    good_total =  (_safe_int(stats.get("good_games_won"))
-                 + _safe_int(stats.get("good_games_lost"))
-                 + _safe_int(stats.get("gawain_good_lost"))
-                 + _safe_int(stats.get("gawain_games_won"))
-                 + _safe_int(stats.get("nimue_win_good"))
-                 + _safe_int(stats.get("nimue_good_lost"))
+    good_total = (_safe_int(stats.get("good_games_won"))
+                + _safe_int(stats.get("good_games_lost"))
+                + _safe_int(stats.get("gawain_good_lost"))
+                + _safe_int(stats.get("gawain_games_won"))
+                + _safe_int(stats.get("nimue_win_good"))
+                + _safe_int(stats.get("nimue_good_lost"))
+                + _safe_int(stats.get("everyone_wins_games"))
                 )
 
     total    = wins + losses

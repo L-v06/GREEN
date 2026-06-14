@@ -109,6 +109,8 @@ def build_pages(name: str, stats: dict) -> list[tuple[discord.Embed, list]]:
     )
 
     death_toll = s.get("death_toll") or "0"
+    
+    votes_in = s.get("how_many_times_voted") or "0"
 
     gawain_deaths = _safe_int(s.get("died_as_gawain")) +  _safe_int(s.get("duo_died_as_gawain"))
 
@@ -122,7 +124,7 @@ def build_pages(name: str, stats: dict) -> list[tuple[discord.Embed, list]]:
 
     e2.add_field(name="Deaths", value="\n".join(death_lines), inline=False)
 
-    _row1(e2, "Votes", "Team votes you were in")
+    _row1(e2, "Votes", f"Team votes you were in : **{votes_in}**")
     e2.set_image(url="attachment://graph.png")
     e2.set_footer(text="Streaks & Voting")
     pages.append((e2, [make_votes_graph(s)]))
@@ -396,24 +398,44 @@ class Stats(commands.Cog):
     def __init__(self, client):
         self.client = client
 
-    @app_commands.command(name="stats", description="Get your player stats from Avalon Games!")
+    @app_commands.command(name="stats", description="Get your player stats from Avalon Games! (Admins can check other players)")
     @app_commands.guilds(discord.Object(id=GUILD_ID))
-    async def stats(self, interaction: discord.Interaction):
-
-        target_id_str = str(interaction.user.id)
-        player_nick   = PLAYERS_IDS.get(target_id_str)
-
-        if player_nick:
-            player_in_list = _fuzzy_match_name_local(player_nick, nomes)
+    async def stats(self, interaction: discord.Interaction, player: str = None):
+        # Admin check: if a player name is given, only allow admins
+        if player is not None:
+            if not interaction.user.guild_permissions.administrator:
+                await interaction.response.send_message(
+                    "You need administrator permissions to view another player's stats.",
+                    ephemeral=True,
+                )
+                return
+            player_nick = player.strip()
+            if not player_nick:
+                await interaction.response.send_message("Please provide a valid player name.", ephemeral=True)
+                return
         else:
-            player_in_list = _fuzzy_match_name_local(interaction.user.display_name, nomes)
+            # Self lookup
+            target_id_str = str(interaction.user.id)
+            player_nick = PLAYERS_IDS.get(target_id_str)
+            if not player_nick:
+                # fallback to display name
+                player_nick = interaction.user.display_name
+
+        # Fuzzy match the name
+        player_in_list = _fuzzy_match_name_local(player_nick, nomes)
 
         if not player_in_list:
-            await interaction.response.send_message(
-                "Couldn't find your name in the player list. "
-                "Are you registered in `players_ids.json`?",
-                ephemeral=True,
-            )
+            if player is not None:
+                await interaction.response.send_message(
+                    f"Couldn't find **{player_nick}** in the player list.",
+                    ephemeral=True,
+                )
+            else:
+                await interaction.response.send_message(
+                    "Couldn't find your name in the player list. "
+                    "Are you registered in `players_ids.json`?",
+                    ephemeral=True,
+                )
             return
 
         await interaction.response.defer()
@@ -453,7 +475,6 @@ class Stats(commands.Cog):
         await msg.add_reaction("➡️")
 
         # Adiciona reações numéricas conforme o total de páginas
-        # Mapeamento: '1️⃣' -> 1, '2️⃣' -> 2, ..., '9️⃣' -> 9, '0️⃣' -> 10
         number_emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "0️⃣"]
         for i in range(1, total_pages + 1):
             if i <= 9:
@@ -461,7 +482,6 @@ class Stats(commands.Cog):
             elif i == 10:
                 await msg.add_reaction(number_emojis[9])  # '0️⃣'
             else:
-                # Se houver mais de 10 páginas, não adicionamos reações além do 10 (opcional)
                 pass
 
         # Função de verificação
@@ -489,7 +509,6 @@ class Stats(commands.Cog):
                     current_page = (current_page - 1) % total_pages
                 else:
                     # Reação numérica
-                    # Descobre o dígito: o emoji é como "1️⃣" -> queremos o caractere '1'
                     digit = emoji[0]  # primeiro caractere é o número
                     if digit == "0":
                         target_page_num = 10

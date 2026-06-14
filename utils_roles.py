@@ -1,22 +1,22 @@
 import os
 import json
-import time
 import gspread
 from google.oauth2.service_account import Credentials
 
-from utils_config import _fuzzy_match_name_local
+from utils_config import _fuzzy_match_name_local, SHEET_NAME
 
-ROLES_CACHE_FILE = "cache_roles.json"
+# nome do cache segue o mesmo padrão dev/prod
+_MODE            = os.getenv("BOT_MODE", "prod").lower()
+ROLES_CACHE_FILE = f"cache_roles_{_MODE}.json"
 
 scopes = [
     "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"
+    "https://www.googleapis.com/auth/drive",
 ]
 
-creds = Credentials.from_service_account_file("green_credentials.json", scopes=scopes)
-client = gspread.authorize(creds)
-
-planilha = client.open("TESTE")
+creds        = Credentials.from_service_account_file("green_credentials.json", scopes=scopes)
+client       = gspread.authorize(creds)
+planilha     = client.open(SHEET_NAME)
 pagina_roles = planilha.worksheet("Role Stats")
 
 ALL_ROLES = [
@@ -33,9 +33,8 @@ ALL_ROLES = [
 roles_cache: dict = {}
 
 
-
 # ==============================================================================
-# Helpers (mantidos iguais)
+# Helpers
 # ==============================================================================
 
 def _safe_int(value) -> int:
@@ -46,8 +45,7 @@ def _safe_int(value) -> int:
 
 
 def _cell(dados: list, a1: str):
-    col_str = ""
-    row_str = ""
+    col_str, row_str = "", ""
     for ch in a1:
         if ch.isalpha():
             col_str += ch
@@ -66,7 +64,6 @@ def _cell(dados: list, a1: str):
 
 
 def _col_values_trimmed(dados: list, col_letter: str, row_start: int, row_end: int) -> list[str]:
-    """Pega nomes de uma coluna entre duas linhas, remove vazios e labels."""
     col_idx = 0
     for ch in col_letter.upper():
         col_idx = col_idx * 26 + (ord(ch) - ord('A') + 1)
@@ -91,25 +88,48 @@ def _col_values_trimmed(dados: list, col_letter: str, row_start: int, row_end: i
 
 
 # ==============================================================================
-# Carregamento explícito de cada role (para fácil depuração)
+# Cache
+# ==============================================================================
+
+def _save_roles_cache():
+    with open(ROLES_CACHE_FILE, "w", encoding="utf-8") as f:
+        json.dump(roles_cache, f, indent=4, ensure_ascii=False)
+    print(f"[roles] Cache salvo em {ROLES_CACHE_FILE}")
+
+
+def _load_roles_cache_from_file() -> bool:
+    if not os.path.exists(ROLES_CACHE_FILE):
+        return False
+    with open(ROLES_CACHE_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    roles_cache.update(data)
+    print(f"[roles] Cache carregado de {ROLES_CACHE_FILE} ({len(data)} roles)")
+    return True
+
+
+def get_role_stats(role_name: str) -> dict | None:
+    return roles_cache.get(role_name.lower())
+
+
+# ==============================================================================
+# Carregamento explícito de cada role
 # ==============================================================================
 
 def load_all_roles(force: bool = False):
     if not force and _load_roles_cache_from_file():
         return
 
-    print("[roles] Buscando todos os roles no Sheets (mapeamento explícito)...")
-    dados = pagina_roles.get_all_values()   # única requisição
+    print(f"[roles] Buscando todos os roles no Sheets ({SHEET_NAME})...")
+    dados = pagina_roles.get_all_values()
 
     # ------------------------------------------------------------
     # 1. EVIL ROLES (blocos A-G)
     # ------------------------------------------------------------
 
-    # Assassin
     roles_cache["assassin"] = {
         "how_many_played":  _safe_int(_cell(dados, "A4")),
         "duo_games":        _safe_int(_cell(dados, "A7")),
-        "april_fools":      _safe_int(_cell(dados, "A11")),
+        "april_fools":      _safe_int(_cell(dados, "A12")),
         "games_won":        _safe_int(_cell(dados, "D4")),
         "games_lost":       _safe_int(_cell(dados, "E4")),
         "gawain_loss":      _safe_int(_cell(dados, "F4")),
@@ -120,7 +140,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "C", 3, 6),
     }
 
-    # Bertilak
     roles_cache["bertilak"] = {
         "how_many_played":  _safe_int(_cell(dados, "A25")),
         "duo_games":        _safe_int(_cell(dados, "A28")),
@@ -135,7 +154,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "C", 25, 28),
     }
 
-    # Dagonet
     roles_cache["dagonet"] = {
         "how_many_played":  _safe_int(_cell(dados, "A47")),
         "duo_games":        _safe_int(_cell(dados, "A50")),
@@ -150,7 +168,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "C", 47, 50),
     }
 
-    # Lucius
     roles_cache["lucius"] = {
         "how_many_played":  _safe_int(_cell(dados, "A69")),
         "duo_games":        _safe_int(_cell(dados, "A72")),
@@ -165,7 +182,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "C", 69, 72),
     }
 
-    # Maduc
     roles_cache["maduc"] = {
         "how_many_played":  _safe_int(_cell(dados, "A91")),
         "duo_games":        _safe_int(_cell(dados, "A93")),
@@ -180,7 +196,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "C", 91, 94),
     }
 
-    # Mark
     roles_cache["mark"] = {
         "how_many_played":  _safe_int(_cell(dados, "A113")),
         "duo_games":        _safe_int(_cell(dados, "A116")),
@@ -195,7 +210,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "C", 113, 116),
     }
 
-    # Meleagant
     roles_cache["meleagant"] = {
         "how_many_played":  _safe_int(_cell(dados, "A135")),
         "duo_games":        _safe_int(_cell(dados, "A138")),
@@ -210,7 +224,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "C", 135, 138),
     }
 
-    # Mordred
     roles_cache["mordred"] = {
         "how_many_played":  _safe_int(_cell(dados, "A157")),
         "duo_games":        _safe_int(_cell(dados, "A162")),
@@ -225,7 +238,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "C", 157, 160),
     }
 
-    # Morgana
     roles_cache["morgana"] = {
         "how_many_played":  _safe_int(_cell(dados, "A179")),
         "duo_games":        _safe_int(_cell(dados, "A182")),
@@ -240,7 +252,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "C", 179, 182),
     }
 
-    # Oberon
     roles_cache["oberon"] = {
         "how_many_played":  _safe_int(_cell(dados, "A201")),
         "duo_games":        _safe_int(_cell(dados, "A204")),
@@ -255,7 +266,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "C", 201, 204),
     }
 
-    # Puck
     roles_cache["puck"] = {
         "how_many_played":  _safe_int(_cell(dados, "A223")),
         "duo_games":        _safe_int(_cell(dados, "A226")),
@@ -270,7 +280,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "C", 223, 226),
     }
 
-    # Queen Mab
     roles_cache["queen mab"] = {
         "how_many_played":  _safe_int(_cell(dados, "A245")),
         "duo_games":        _safe_int(_cell(dados, "A248")),
@@ -285,7 +294,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "C", 245, 248),
     }
 
-    # Vortigern
     roles_cache["vortigern"] = {
         "how_many_played":  _safe_int(_cell(dados, "A267")),
         "duo_games":        _safe_int(_cell(dados, "A273")),
@@ -300,7 +308,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "C", 267, 270),
     }
 
-    # Minion
     roles_cache["minion"] = {
         "how_many_played":  _safe_int(_cell(dados, "A289")),
         "duo_games":        _safe_int(_cell(dados, "A292")),
@@ -315,7 +322,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "C", 289, 292),
     }
 
-    # Bad Lancelot
     roles_cache["bad lancelot"] = {
         "how_many_played":  _safe_int(_cell(dados, "A311")),
         "duo_games":        _safe_int(_cell(dados, "A314")),
@@ -330,7 +336,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "C", 311, 314),
     }
 
-    # Nimue (E)
     roles_cache["nimue (e)"] = {
         "how_many_played":  _safe_int(_cell(dados, "A333")),
         "duo_games":        _safe_int(_cell(dados, "A336")),
@@ -345,7 +350,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "C", 333, 336),
     }
 
-    # The Witch of Caerlloyw
     roles_cache["the witch of caerlloyw"] = {
         "how_many_played":  _safe_int(_cell(dados, "A355")),
         "duo_games":        _safe_int(_cell(dados, "A358")),
@@ -364,7 +368,6 @@ def load_all_roles(force: bool = False):
     # 2. GOOD ROLES (blocos I-O)
     # ------------------------------------------------------------
 
-    # Merlin
     roles_cache["merlin"] = {
         "how_many_played":  _safe_int(_cell(dados, "I4")),
         "duo_games":        _safe_int(_cell(dados, "I7")),
@@ -379,7 +382,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "K", 3, 6),
     }
 
-    # Apprentice
     roles_cache["apprentice"] = {
         "how_many_played":  _safe_int(_cell(dados, "I25")),
         "duo_games":        _safe_int(_cell(dados, "I28")),
@@ -394,7 +396,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "K", 25, 28),
     }
 
-    # Caelia
     roles_cache["caelia"] = {
         "how_many_played":  _safe_int(_cell(dados, "I47")),
         "duo_games":        _safe_int(_cell(dados, "I50")),
@@ -409,7 +410,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "K", 47, 50),
     }
 
-    # Elaine
     roles_cache["elaine"] = {
         "how_many_played":  _safe_int(_cell(dados, "I69")),
         "duo_games":        _safe_int(_cell(dados, "I72")),
@@ -424,7 +424,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "K", 69, 72),
     }
 
-    # Galahad
     roles_cache["galahad"] = {
         "how_many_played":  _safe_int(_cell(dados, "I91")),
         "duo_games":        _safe_int(_cell(dados, "I94")),
@@ -439,7 +438,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "K", 91, 94),
     }
 
-    # Gawain
     roles_cache["gawain"] = {
         "how_many_played":  _safe_int(_cell(dados, "I113")),
         "duo_games":        _safe_int(_cell(dados, "I113")),
@@ -454,7 +452,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "K", 113, 116),
     }
 
-    # Guinevere
     roles_cache["guinevere"] = {
         "how_many_played":  _safe_int(_cell(dados, "I135")),
         "duo_games":        _safe_int(_cell(dados, "I138")),
@@ -469,7 +466,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "K", 135, 138),
     }
 
-    # King Arthur
     roles_cache["king arthur"] = {
         "how_many_played":  _safe_int(_cell(dados, "I157")),
         "duo_games":        _safe_int(_cell(dados, "I160")),
@@ -484,7 +480,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "K", 157, 160),
     }
 
-    # Palamedes
     roles_cache["palamedes"] = {
         "how_many_played":  _safe_int(_cell(dados, "I179")),
         "duo_games":        _safe_int(_cell(dados, "I182")),
@@ -499,7 +494,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "K", 179, 182),
     }
 
-    # Percival
     roles_cache["percival"] = {
         "how_many_played":  _safe_int(_cell(dados, "I201")),
         "duo_games":        _safe_int(_cell(dados, "I204")),
@@ -514,7 +508,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "K", 201, 204),
     }
 
-    # Sir Kay
     roles_cache["sir kay"] = {
         "how_many_played":  _safe_int(_cell(dados, "I223")),
         "duo_games":        _safe_int(_cell(dados, "I226")),
@@ -529,7 +522,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "K", 223, 226),
     }
 
-    # Loyal Servant
     roles_cache["loyal servant"] = {
         "how_many_played":  _safe_int(_cell(dados, "I245")),
         "duo_games":        _safe_int(_cell(dados, "I248")),
@@ -544,7 +536,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "K", 245, 248),
     }
 
-    # Tristan
     roles_cache["tristan"] = {
         "how_many_played":  _safe_int(_cell(dados, "I267")),
         "duo_games":        _safe_int(_cell(dados, "I270")),
@@ -559,7 +550,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "K", 267, 270),
     }
 
-    # Iseult
     roles_cache["iseult"] = {
         "how_many_played":  _safe_int(_cell(dados, "I289")),
         "duo_games":        _safe_int(_cell(dados, "I294")),
@@ -574,7 +564,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "K", 289, 292),
     }
 
-    # Lancelot
     roles_cache["lancelot"] = {
         "how_many_played":  _safe_int(_cell(dados, "I311")),
         "duo_games":        _safe_int(_cell(dados, "I314")),
@@ -589,7 +578,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "K", 311, 314),
     }
 
-    # Nimue (G)
     roles_cache["nimue (g)"] = {
         "how_many_played":  _safe_int(_cell(dados, "I333")),
         "duo_games":        _safe_int(_cell(dados, "I333")),
@@ -604,7 +592,6 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "K", 333, 336),
     }
 
-    # Penpingion
     roles_cache["penpingion"] = {
         "how_many_played":  _safe_int(_cell(dados, "I355")),
         "duo_games":        _safe_int(_cell(dados, "I358")),
@@ -620,36 +607,26 @@ def load_all_roles(force: bool = False):
     }
 
     _save_roles_cache()
-    print("[roles] Cache completo (mapeamento explícito salvo).")
+    print(f"[roles] Cache completo ({len(roles_cache)} roles).")
 
 
 # ==============================================================================
-# Cache (mantido igual)
+# Refresh de uma role específica
 # ==============================================================================
 
-def _save_roles_cache():
-    with open(ROLES_CACHE_FILE, "w", encoding="utf-8") as f:
-        json.dump(roles_cache, f, indent=4, ensure_ascii=False)
-    print("[roles] Cache salvo em cache_roles.json")
-
-
-def _load_roles_cache_from_file() -> bool:
-    if not os.path.exists(ROLES_CACHE_FILE):
-        return False
-    with open(ROLES_CACHE_FILE, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    roles_cache.update(data)
-    print(f"[roles] Cache carregado do arquivo ({len(data)} roles)")
-    return True
-
-
-def get_role_stats(role_name: str) -> dict | None:
-    return roles_cache.get(role_name.lower())
-
-
-def refresh_role(role_name: str) -> dict:
-    """Recarrega um role específico diretamente da planilha e atualiza o cache."""
+def refresh_role(role_name: str) -> dict | None:
+    """Recarrega uma role específica da planilha e atualiza o cache."""
+    role_key = role_name.strip().lower()
+    print(f"[roles] Refrescando '{role_key}'...")
     dados = pagina_roles.get_all_values()
- 
+
+    # Recarrega todas as roles do dados já lido e pega só a que interessa
+    temp_cache = {}
+    _roles_cache_backup = dict(roles_cache)
+
     load_all_roles(force=True)
-    return get_role_stats(role_name)
+
+    result = roles_cache.get(role_key)
+    if result is None:
+        print(f"[roles] Role '{role_key}' não encontrada.")
+    return result
