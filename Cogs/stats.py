@@ -78,10 +78,6 @@ def build_pages(name: str, stats: dict) -> list[tuple[discord.Embed, list]]:
     pages = []
     s = stats
 
-    # Listas normalizadas para comparação (lowercase, sem aspas)
-    good_roles_lower = [r.strip().lower() for r in GOOD_ROLES]
-    evil_roles_lower = [r.strip().lower() for r in EVIL_ROLES]
-
     # ------------------------------------------------------------------
     # PÁGINA 1 — General Stats (graph)
     # ------------------------------------------------------------------
@@ -109,11 +105,9 @@ def build_pages(name: str, stats: dict) -> list[tuple[discord.Embed, list]]:
     )
 
     death_toll = s.get("death_toll") or "0"
-    
     votes_in = s.get("how_many_times_voted") or "0"
 
-    gawain_deaths = _safe_int(s.get("died_as_gawain")) +  _safe_int(s.get("duo_died_as_gawain"))
-
+    gawain_deaths = _safe_int(s.get("died_as_gawain")) + _safe_int(s.get("duo_died_as_gawain"))
     nimue_deaths  = _safe_int(s.get("died_as_nimue")) + _safe_int(s.get("duo_died_as_nimue"))
 
     death_lines = [f"You were killed **{death_toll} TIMES**"]
@@ -123,7 +117,6 @@ def build_pages(name: str, stats: dict) -> list[tuple[discord.Embed, list]]:
         death_lines.append(f" As Nimue (draw): **{nimue_deaths}**")
 
     e2.add_field(name="Deaths", value="\n".join(death_lines), inline=False)
-
     _row1(e2, "Votes", f"Team votes you were in : **{votes_in}**")
     e2.set_image(url="attachment://graph.png")
     e2.set_footer(text="Streaks & Voting")
@@ -202,8 +195,6 @@ def build_pages(name: str, stats: dict) -> list[tuple[discord.Embed, list]]:
         inline=False,
     )
 
-    # ========== MODIFICAÇÃO AQUI ==========
-    # Substitui o bloco de código por texto simples para evitar quebra de nomes longos
     evil_role_most = s.get("duo_evil_role_won_most") or "-"
     good_role_most = s.get("duo_good_role_won_most") or "-"
     e5.add_field(
@@ -211,7 +202,6 @@ def build_pages(name: str, stats: dict) -> list[tuple[discord.Embed, list]]:
         value=f"**Evil:** {evil_role_most}\n**Good:** {good_role_most}",
         inline=False,
     )
-    # =====================================
 
     d_g_won       = _safe_int(s.get("duo_good_games_won"))
     d_e_won       = _safe_int(s.get("duo_evil_games_won"))
@@ -223,19 +213,23 @@ def build_pages(name: str, stats: dict) -> list[tuple[discord.Embed, list]]:
     d_gawain_lost = _safe_int(s.get("duo_gawain_games_lost"))
 
     total_duo_won   = d_g_won + d_e_won + d_nimue_won + d_gwain_won
-    total_duo_games = d_g_won + d_e_won +d_g_lost + d_e_lost + d_nimue_lost + d_gawain_lost + d_gwain_won + d_nimue_won
+    total_duo_games = d_g_won + d_e_won + d_g_lost + d_e_lost + d_nimue_lost + d_gawain_lost + d_gwain_won + d_nimue_won
     duo_ratio = f"{(total_duo_won / total_duo_games * 100):.1f}%" if total_duo_games > 0 else "0%"
 
     e5.add_field(name="Duo Mixed Win Ratio", value=f"**{duo_ratio}**", inline=False)
 
-    # NOVO CAMPO: Duo Died For (mesmo formato Evil / Good)
     e5.add_field(
         name="Duo Died For",
         value=duo_format(s.get("duo_died_for_evil"), s.get("duo_died_for_good")),
         inline=False,
     )
 
-    duo_died = _safe_int(s.get("duo_died_for_good")) + _safe_int(s.get("duo_died_for_evil")) + d_gwain_won  + _safe_int(s.get("duo_died_as_nimue"))
+    duo_died = (
+        _safe_int(s.get("duo_died_for_good"))
+        + _safe_int(s.get("duo_died_for_evil"))
+        + d_gwain_won
+        + _safe_int(s.get("duo_died_as_nimue"))
+    )
     duo_killed_correctly = _safe_int(s.get("duo_was_killed_correctly"))
     if duo_died > 0:
         e5.add_field(
@@ -294,7 +288,6 @@ def build_pages(name: str, stats: dict) -> list[tuple[discord.Embed, list]]:
     e7.set_footer(text="Evil Roles")
     pages.append((e7, [make_evil_roles_graph(s)]))
 
-
     # ------------------------------------------------------------------
     # PÁGINA 8 — Died as Good (Single + Duo, incluindo Gawain)
     # ------------------------------------------------------------------
@@ -319,18 +312,9 @@ def build_pages(name: str, stats: dict) -> list[tuple[discord.Embed, list]]:
         combined_good_death_roles["Gawain"] = combined_good_death_roles.get("Gawain", 0) + died_as_gawain
     add_roles(s.get("duo_roles_that_died_with", {}))
 
-    tricked_good = _safe_int(s.get("tricker_good_role"))
-    if died_as_good_single > 0:
-        wrong_pct_good = f"{(tricked_good / died_as_good_single * 100):.1f}%"
-    else:
-        wrong_pct_good = "0%"
-
     if total_good_deaths > 0:
         e8 = discord.Embed(title=f"{name.upper()}  —  Died as Good", color=0x2ecc71)
-        e8.description = (
-            f"You were killed **{total_good_deaths}** times while playing as Good.\n"
-        )
-
+        e8.description = f"You were killed **{total_good_deaths}** times while playing as Good.\n"
         e8.set_image(url="attachment://graph.png")
         e8.set_footer(text="Died as Good")
         graph_data = {"roles_played": combined_good_death_roles} if combined_good_death_roles else None
@@ -359,18 +343,9 @@ def build_pages(name: str, stats: dict) -> list[tuple[discord.Embed, list]]:
     add_evil_roles(s.get("roles_that_died_with", {}))
     add_evil_roles(s.get("duo_roles_that_died_with", {}))
 
-    tricked_evil = _safe_int(s.get("tricker_evil_role"))
-    if died_as_evil_single > 0:
-        wrong_pct_evil = f"{(tricked_evil / died_as_evil_single * 100):.1f}%"
-    else:
-        wrong_pct_evil = "0%"
-
     if total_evil_deaths > 0:
         e9 = discord.Embed(title=f"{name.upper()}  —  Died as Evil", color=0xe74c3c)
-        e9.description = (
-            f"You were killed **{total_evil_deaths}** times while playing as Evil.\n"
-        )
-
+        e9.description = f"You were killed **{total_evil_deaths}** times while playing as Evil.\n"
         e9.set_image(url="attachment://graph.png")
         e9.set_footer(text="Died as Evil")
         graph_data_evil = {"roles_played": combined_evil_death_roles} if combined_evil_death_roles else None
@@ -399,10 +374,13 @@ class Stats(commands.Cog):
         self.client = client
 
     @app_commands.command(name="stats", description="Get your player stats from Avalon Games! (Admins can check other players)")
+    @app_commands.describe(player="(Admin only) Player name to look up")
     @app_commands.guilds(discord.Object(id=GUILD_ID))
     async def stats(self, interaction: discord.Interaction, player: str = None):
-        # Admin check: if a player name is given, only allow admins
+
+        # --- Resolve who we're looking up ---
         if player is not None:
+            # Only admins can look up other players
             if not interaction.user.guild_permissions.administrator:
                 await interaction.response.send_message(
                     "You need administrator permissions to view another player's stats.",
@@ -411,33 +389,28 @@ class Stats(commands.Cog):
                 return
             player_nick = player.strip()
             if not player_nick:
-                await interaction.response.send_message("Please provide a valid player name.", ephemeral=True)
+                await interaction.response.send_message(
+                    "Please provide a valid player name.", ephemeral=True
+                )
                 return
         else:
-            # Self lookup
+            # Self-lookup: prefer players_ids.json, fall back to display name
             target_id_str = str(interaction.user.id)
-            player_nick = PLAYERS_IDS.get(target_id_str)
-            if not player_nick:
-                # fallback to display name
-                player_nick = interaction.user.display_name
+            player_nick = PLAYERS_IDS.get(target_id_str) or interaction.user.display_name
 
-        # Fuzzy match the name
+        # --- Fuzzy match ---
         player_in_list = _fuzzy_match_name_local(player_nick, nomes)
 
         if not player_in_list:
-            if player is not None:
-                await interaction.response.send_message(
-                    f"Couldn't find **{player_nick}** in the player list.",
-                    ephemeral=True,
-                )
-            else:
-                await interaction.response.send_message(
-                    "Couldn't find your name in the player list. "
-                    "Are you registered in `players_ids.json`?",
-                    ephemeral=True,
-                )
+            msg = (
+                f"Couldn't find **{player_nick}** in the player list."
+                if player is not None
+                else "Couldn't find your name in the player list. Are you registered in `players_ids.json`?"
+            )
+            await interaction.response.send_message(msg, ephemeral=True)
             return
 
+        # --- Defer before any heavy work ---
         await interaction.response.defer()
 
         stats = get_player_stats(player_in_list)
@@ -452,6 +425,8 @@ class Stats(commands.Cog):
         total_pages  = len(pages)
         current_page = 0
 
+        number_emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "0️⃣"]
+
         def make_files(bufs: list) -> list[discord.File]:
             files = []
             for i, buf in enumerate(bufs):
@@ -462,6 +437,7 @@ class Stats(commands.Cog):
                 files.append(discord.File(buf, filename=fname))
             return files
 
+        # --- Send first page ---
         embed, bufs = pages[current_page]
         files = make_files(bufs)
 
@@ -470,32 +446,24 @@ class Stats(commands.Cog):
         else:
             msg = await interaction.followup.send(embed=embed)
 
-        # Adiciona reações de navegação
+        # --- Add navigation reactions ---
         await msg.add_reaction("⬅️")
         await msg.add_reaction("➡️")
 
-        # Adiciona reações numéricas conforme o total de páginas
-        number_emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "0️⃣"]
-        for i in range(1, total_pages + 1):
-            if i <= 9:
-                await msg.add_reaction(number_emojis[i-1])
-            elif i == 10:
-                await msg.add_reaction(number_emojis[9])  # '0️⃣'
-            else:
-                pass
+        for i in range(min(total_pages, 9)):
+            await msg.add_reaction(number_emojis[i])
+        if total_pages >= 10:
+            await msg.add_reaction(number_emojis[9])  # '0️⃣' for page 10
 
-        # Função de verificação
+        # --- Reaction check: only the invoking user, on this message ---
         def check(reaction, u):
             return (
-                u == interaction.user
+                u.id == interaction.user.id
                 and reaction.message.id == msg.id
-                and (
-                    str(reaction.emoji) in ("⬅️", "➡️") or
-                    str(reaction.emoji) in number_emojis
-                )
+                and str(reaction.emoji) in (["⬅️", "➡️"] + number_emojis)
             )
 
-        # Tempo de espera aumentado para 20 minutos (1200 segundos)
+        # --- Navigation loop ---
         while True:
             try:
                 reaction, u = await self.client.wait_for(
@@ -507,13 +475,9 @@ class Stats(commands.Cog):
                     current_page = (current_page + 1) % total_pages
                 elif emoji == "⬅️":
                     current_page = (current_page - 1) % total_pages
-                else:
-                    # Reação numérica
-                    digit = emoji[0]  # primeiro caractere é o número
-                    if digit == "0":
-                        target_page_num = 10
-                    else:
-                        target_page_num = int(digit)
+                elif emoji in number_emojis:
+                    digit = emoji[0]
+                    target_page_num = 10 if digit == "0" else int(digit)
                     if 1 <= target_page_num <= total_pages:
                         current_page = target_page_num - 1
 
@@ -525,10 +489,13 @@ class Stats(commands.Cog):
                 else:
                     await msg.edit(embed=embed, attachments=[])
 
-                await msg.remove_reaction(reaction, u)
+                try:
+                    await msg.remove_reaction(reaction, u)
+                except discord.HTTPException:
+                    pass  # Missing permissions to remove reaction — not fatal
 
             except Exception:
-                break
+                break  # Timeout or other error — stop listening
 
 
 async def setup(client):
