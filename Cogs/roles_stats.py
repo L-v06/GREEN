@@ -428,7 +428,7 @@ class RoleStats(commands.Cog):
     @app_commands.guilds(discord.Object(id=int(GUILD_ID)))
     async def role_stats_good(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        embeds, role_map = build_side_pages(GOOD_ROLES, "Good", 0x2ecc71)
+        embeds, role_map = build_side_pages(GOOD_ROLES, "Good","", 0x2ecc71)
         if not embeds:
             await interaction.followup.send("No Good role stats available. Run `/update` first.", ephemeral=True)
             return
@@ -444,7 +444,7 @@ class RoleStats(commands.Cog):
     @app_commands.guilds(discord.Object(id=int(GUILD_ID)))
     async def role_stats_evil(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        embeds, role_map = build_side_pages(EVIL_ROLES, "Evil", "👿", 0xe74c3c)
+        embeds, role_map = build_side_pages(EVIL_ROLES, "Evil", "", 0xe74c3c)
         if not embeds:
             await interaction.followup.send("No Evil role stats available. Run `/update` first.", ephemeral=True)
             return

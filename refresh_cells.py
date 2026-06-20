@@ -6,17 +6,22 @@ Atualiza células específicas do cache sem recarregar tudo.
 MODOS DE USO:
 
 1) Atualizar uma célula simples para todos os jogadores:
-   python refresh_cells.py --sheet 0 --cell I28
+   python refresh_cells.py  → escolha modo 1
 
-2) Atualizar uma role inteira para todos os jogadores:
-   python refresh_cells.py --role "merlin"
+2) Atualizar uma role inteira para todos os jogadores (stats_cache):
+   python refresh_cells.py  → escolha modo 2
 
 3) Ver quais chaves uma célula mapeia:
-   python refresh_cells.py --lookup I28
+   python refresh_cells.py  → escolha modo 3
 
-4) Atualizar um jogador específico (qualquer modo):
-   python refresh_cells.py --sheet 0 --cell I28 --player Nix
-   python refresh_cells.py --role "merlin" --player Nix
+4) Atualizar role_cache.json (parâmetros e/ou roles):
+   python refresh_cells.py  → escolha modo 4
+
+5) Atualizar death stats no stats_cache:
+   python refresh_cells.py  → escolha modo 5
+
+6) Atualizar GM games no games_cache:
+   python refresh_cells.py  → escolha modo 6
 """
 
 import json
@@ -29,7 +34,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from utils_config import _fuzzy_match_name_local, CACHE_FILE, CACHE_ROLES_FILE, SHEET_NAME
+from utils_config import _fuzzy_match_name_local, CACHE_FILE, CACHE_ROLES_FILE, CACHE_GAMES_FILE, SHEET_NAME
 
 # ==============================================================================
 # Auth
@@ -44,15 +49,14 @@ gclient = gspread.authorize(creds)
 
 planilha = gclient.open(SHEET_NAME)
 
-# Worksheets usadas
-pagina_main  = planilha.get_worksheet(0)          # sheet index 0 — stats principais
-pagina_roles = planilha.worksheet("Role Stats")   # roles
+pagina_main  = planilha.get_worksheet(0)
+pagina_roles = planilha.worksheet("Role Stats")
+pagina_gm    = planilha.worksheet("GM Game Finder")
 
-# Nomes dos jogadores (mesma lógica do utils_sheets)
 pagina_nomes = planilha.worksheet("Death Counter")
 nomes = [n for n in pagina_nomes.col_values(1) if n not in ("Name", "Null", "Emma", "")]
 
-ROLE_CACHE_FILE = CACHE_ROLES_FILE  # linha que define o nome do arquivo
+ROLE_CACHE_FILE = CACHE_ROLES_FILE
 
 # ==============================================================================
 # Helpers
@@ -114,11 +118,23 @@ def _save_cache(cache: dict):
     print(f"[refresh] Cache salvo em {CACHE_FILE}")
 
 
+def _load_games_cache() -> dict:
+    if not os.path.exists(CACHE_GAMES_FILE):
+        print(f"[refresh] Games cache não encontrado: {CACHE_GAMES_FILE}")
+        return {}
+    with open(CACHE_GAMES_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _save_games_cache(cache: dict):
+    with open(CACHE_GAMES_FILE, "w", encoding="utf-8") as f:
+        json.dump(cache, f, indent=4, ensure_ascii=False)
+    print(f"[refresh] Games cache salvo em {CACHE_GAMES_FILE}")
+
+
 # ==============================================================================
 # Mapa célula → chave (worksheet 0, stats principais)
 # ==============================================================================
-# Cada entrada: "CÉLULA": "chave_no_cache"
-# Células que retornam _safe_int ficam com tipo "int", o resto "str"
 
 CELL_MAP: dict[str, str] = {
     # GENERAL STATS
@@ -214,7 +230,6 @@ CELL_MAP: dict[str, str] = {
 
 # ==============================================================================
 # Mapa de roles (worksheet "Role Stats")
-# Cada role tem as células que compõem seu bloco
 # ==============================================================================
 
 def _role_block(dados, col_played, col_duo, col_won, col_lost, col_gaw, col_nim,
@@ -236,7 +251,6 @@ def _role_block(dados, col_played, col_duo, col_won, col_lost, col_gaw, col_nim,
 
 
 def _fetch_roles_for_player(nome: str) -> dict:
-    """Lê a aba Role Stats para um jogador e retorna o roles_cache completo."""
     pagina_main.update_acell("A2", nome)
     time.sleep(2)
     dados = pagina_roles.get_all_values()
@@ -293,7 +307,7 @@ def refresh_cell(cell: str, player_filter: str | None = None):
     cell = cell.upper().strip()
 
     if cell not in CELL_MAP:
-        print(f"[refresh] Célula '{cell}' não está no mapa. Use --lookup para ver as disponíveis.")
+        print(f"[refresh] Célula '{cell}' não está no mapa. Use lookup para ver as disponíveis.")
         return
 
     chave = CELL_MAP[cell]
@@ -319,7 +333,6 @@ def refresh_cell(cell: str, player_filter: str | None = None):
         pagina_main.update_acell("A2", nome)
         time.sleep(2)
 
-        # Lê só a linha/coluna necessária (range mínimo)
         valor = pagina_main.acell(cell).value
         time.sleep(0.5)
 
@@ -331,8 +344,7 @@ def refresh_cell(cell: str, player_filter: str | None = None):
 
 
 # ==============================================================================
-# Modo 2 — role no stats_cache por jogador (how_many_played, games_won, etc.)
-# (mantido caso ainda seja usado)
+# Modo 2 — role no stats_cache por jogador
 # ==============================================================================
 
 def refresh_role(role_name: str, player_filter: str | None = None):
@@ -373,11 +385,9 @@ def refresh_role(role_name: str, player_filter: str | None = None):
 
 
 # ==============================================================================
-# Modo 4 — role_cache.json (arquivo separado, estrutura {role: {param: valor}})
+# Modo 4 — role_cache.json
 # ==============================================================================
 
-# Parâmetros simples (lidos direto da célula da aba Role Stats)
-# Estrutura: role → {param → célula}
 ROLE_CELLS_MAP = {
     # EVIL ROLES
     "assassin":               {"how_many_played": "A4",  "duo_games": "A7",  "april_fools": "A11", "games_won": "D4",  "games_lost": "E4",  "gawain_loss": "F4",  "nimue_tie_loss": "G4",  "killed_how_many": "A16"},
@@ -417,10 +427,9 @@ ROLE_CELLS_MAP = {
     "penpingion":             {"how_many_played": "I355","duo_games": "I358","april_fools": None,  "games_won": "L355","games_lost": "M355","gawain_loss": "N355","nimue_tie_loss": "O355","killed_how_many": "I364"},
 }
 
-# Parâmetros que são listas (player_most, player_least) — lidos por range de coluna
 ROLE_LIST_PARAMS = {
-    # evil: col_most=B, col_least=C
-    "assassin":               {"player_most": ("B", 3, 6),   "player_least": ("C", 3, 6)},
+    # evil
+    "assassin":               {"player_most": ("B", 4, 6),   "player_least": ("C", 4, 6)},
     "bertilak":               {"player_most": ("B", 25, 28), "player_least": ("C", 25, 28)},
     "dagonet":                {"player_most": ("B", 47, 50), "player_least": ("C", 47, 50)},
     "lucius":                 {"player_most": ("B", 69, 72), "player_least": ("C", 69, 72)},
@@ -437,8 +446,8 @@ ROLE_LIST_PARAMS = {
     "bad lancelot":           {"player_most": ("B", 311,314),"player_least": ("C", 311,314)},
     "nimue (e)":              {"player_most": ("B", 333,336),"player_least": ("C", 333,336)},
     "the witch of caerlloyw": {"player_most": ("B", 355,358),"player_least": ("C", 355,358)},
-    # good: col_most=J, col_least=K
-    "merlin":                 {"player_most": ("J", 3, 6),   "player_least": ("K", 3, 6)},
+    # good
+    "merlin":                 {"player_most": ("J", 4, 6),   "player_least": ("K", 4, 6)},
     "apprentice":             {"player_most": ("J", 25, 28), "player_least": ("K", 25, 28)},
     "caelia":                 {"player_most": ("J", 47, 50), "player_least": ("K", 47, 50)},
     "elaine":                 {"player_most": ("J", 69, 72), "player_least": ("K", 69, 72)},
@@ -477,11 +486,7 @@ def _save_role_cache(cache: dict):
 
 
 def refresh_role_cache(role_filter: str | None = None, params: list | None = None):
-    """
-    Atualiza o role_cache.json para uma ou todas as roles,
-    atualizando só os parâmetros selecionados.
-    """
-    cache = _load_role_cache()
+    cache  = _load_role_cache()
     params = params or ALL_ROLE_PARAMS
 
     roles_to_update = list(ROLE_CELLS_MAP.keys())
@@ -494,23 +499,19 @@ def refresh_role_cache(role_filter: str | None = None, params: list | None = Non
         roles_to_update = [role_filter]
 
     print(f"\n[refresh] Atualizando {len(roles_to_update)} role(s), parâmetros: {params}\n")
-
-    # Lê a aba Role Stats uma única vez (sem depender de A2 dinâmico)
     print("[refresh] Lendo aba Role Stats...")
     dados = pagina_roles.get_all_values()
     time.sleep(1)
 
     for role in roles_to_update:
         print(f"  → {role}")
-
         if role not in cache:
             cache[role] = {}
 
-        cells = ROLE_CELLS_MAP.get(role, {})
+        cells       = ROLE_CELLS_MAP.get(role, {})
         list_params = ROLE_LIST_PARAMS.get(role, {})
 
         for param in params:
-            # Parâmetros de lista
             if param in ("player_most", "player_least"):
                 if param in list_params:
                     col, row_start, row_end = list_params[param]
@@ -519,10 +520,8 @@ def refresh_role_cache(role_filter: str | None = None, params: list | None = Non
                     print(f"     {param} = {valor}")
                 continue
 
-            # Parâmetros simples
             celula = cells.get(param)
             if not celula:
-                # parâmetro não existe para essa role (ex: april_fools=None)
                 if param not in cache[role]:
                     cache[role][param] = 0
                 continue
@@ -551,6 +550,144 @@ def lookup_cell(cell: str):
 
 
 # ==============================================================================
+# Modo 5 — Death Stats
+# ==============================================================================
+
+DEATH_KEYS = [
+    "was_killed_correctly", "was_killed_incorrectly",
+    "died_for_good", "died_for_evil",
+    "died_as_nimue", "died_as_gawain",
+    "tricker_good_role", "tricker_evil_role",
+    "roles_that_died_with",
+]
+
+
+def refresh_death_stats(player_filter: str | None = None):
+    from utils_sheets import compute_death_stats
+
+    cache = _load_cache()
+
+    jogadores_filter = None
+    if player_filter:
+        matched = _fuzzy_match_name_local(player_filter, nomes)
+        if not matched:
+            print(f"[refresh] Jogador '{player_filter}' não encontrado.")
+            return
+        jogadores_filter = matched.lower()
+        print(f"[refresh] Filtrando para: {matched}")
+
+    print("[refresh] Rodando compute_death_stats()...")
+    all_death, duo_death = compute_death_stats()
+
+    for player_name, death_dict in all_death.items():
+        key = player_name.lower()
+        if jogadores_filter and key != jogadores_filter:
+            continue
+        if key not in cache:
+            print(f"  → {player_name}: não está no cache, pulando")
+            continue
+        for k in DEATH_KEYS:
+            if k in death_dict:
+                cache[key][k] = death_dict[k]
+        print(f"  → {player_name}: death stats atualizadas")
+
+    for player_name, duo_dict in duo_death.items():
+        key = player_name.lower()
+        if jogadores_filter and key != jogadores_filter:
+            continue
+        if key not in cache:
+            continue
+        for k, v in duo_dict.items():
+            cache[key][f"duo_{k}"] = v
+        print(f"  → {player_name}: duo death stats atualizadas")
+
+    _save_cache(cache)
+    print("[refresh] Death stats concluídas!")
+
+
+# ==============================================================================
+# Modo 6 — GM Games (usa pagina_gm local, não importa utils_sheets)
+# ==============================================================================
+
+def _fetch_gm_games_local(gm_name: str, total_games: int) -> list:
+    jogos = []
+    for i in range(1, total_games + 1):
+        pagina_gm.update([[gm_name]], "A2")
+        pagina_gm.update([[i]], "B2")
+        time.sleep(2)
+
+        dados    = pagina_gm.get("D2:K30")
+        co_dados = pagina_gm.get("A6:A13")
+
+        if not dados:
+            continue
+
+        first_row = dados[0] if dados else []
+
+        date  = first_row[0].strip() if len(first_row) > 0 and first_row[0].strip() else None
+        title = first_row[5].strip() if len(first_row) > 5 and first_row[5].strip() else None
+        notes = first_row[7].strip() if len(first_row) > 7 and first_row[7].strip() else None
+
+        outcome_row = co_dados[-1] if co_dados else []
+        outcome = outcome_row[0].strip() if outcome_row and outcome_row[0].strip() else None
+
+        co_gms = []
+        if co_dados:
+            for row in co_dados[:3]:
+                val = row[0].strip() if row and row[0].strip() else ""
+                if val and val.lower() != "no other gm":
+                    co_gms.append(val)
+
+        players = {}
+        for linha in dados:
+            if len(linha) >= 3 and linha[1].strip():
+                players[linha[1].strip()] = linha[2].strip() if len(linha) > 2 else ""
+
+        jogos.append({
+            "game_number": i,
+            "date":        date,
+            "title":       title,
+            "notes":       notes,
+            "co_gms":      co_gms,
+            "players":     players,
+            "outcome":     outcome,
+        })
+
+        print(f"     jogo {i}/{total_games} lido")
+
+    return jogos
+
+
+def refresh_gm_games(player_filter: str | None = None):
+    stats_cache = _load_cache()
+    games_cache = _load_games_cache()
+
+    jogadores = nomes
+    if player_filter:
+        matched = _fuzzy_match_name_local(player_filter, nomes)
+        if not matched:
+            print(f"[refresh] Jogador '{player_filter}' não encontrado.")
+            return
+        jogadores = [matched]
+
+    print(f"[refresh] Atualizando GM games para {len(jogadores)} jogador(es)...")
+
+    for nome in jogadores:
+        key   = nome.lower()
+        total = _safe_int(stats_cache.get(key, {}).get("total_games_gmed"))
+        if not total:
+            if player_filter:
+                print(f"  → {nome}: total_games_gmed nulo ou zero, pulando")
+            continue
+        print(f"  → {nome} ({total} jogos)...")
+        games_cache[key] = _fetch_gm_games_local(nome, total)
+        print(f"     {nome} concluído")
+
+    _save_games_cache(games_cache)
+    print("[refresh] GM games cache atualizado!")
+
+
+# ==============================================================================
 # CLI interativo
 # ==============================================================================
 
@@ -568,9 +705,11 @@ if __name__ == "__main__":
     print("  2) Atualizar role no stats_cache por jogador")
     print("  3) Lookup — ver qual chave uma célula mapeia")
     print("  4) Atualizar role_cache.json (parâmetros e/ou roles)")
+    print("  5) Atualizar death stats no stats_cache")
+    print("  6) Atualizar GM games no games_cache")
     print()
 
-    modo = input("Escolha o modo (1 / 2 / 3 / 4): ").strip()
+    modo = input("Escolha o modo (1 / 2 / 3 / 4 / 5 / 6): ").strip()
 
     if modo == "1":
         cell   = _ask("Célula (ex: I28): ")
@@ -610,5 +749,13 @@ if __name__ == "__main__":
         role_input = _ask("\nRole específica (deixe vazio para todas): ", optional=True)
         refresh_role_cache(role_filter=role_input, params=params_sel)
 
+    elif modo == "5":
+        player = _ask("Jogador (deixe vazio para todos): ", optional=True)
+        refresh_death_stats(player)
+
+    elif modo == "6":
+        player = _ask("GM (deixe vazio para todos): ", optional=True)
+        refresh_gm_games(player)
+
     else:
-        print("Modo inválido. Rode novamente e escolha 1, 2, 3 ou 4.")
+        print("Modo inválido. Rode novamente e escolha 1, 2, 3, 4, 5 ou 6.")

@@ -9,11 +9,8 @@ Roda interativamente — escolha quais parâmetros atualizar.
 import gspread
 import time
 from google.oauth2.service_account import Credentials
+from utils_config import SHEET_NAME
 
-# =============================================================================
-# CONFIGURAÇÕES
-# =============================================================================
-SHEET_NAME       = "TESTE"
 WORKSHEET_NAME   = "Role Stats"
 CREDENTIALS_FILE = "green_credentials.json"
 SLEEP            = 0.8
@@ -33,54 +30,10 @@ EVIL_ROLES = {
 }
 
 # =============================================================================
-# COLUNA DA PIVOT POR ROLE (Role Breakdown)
-# Ordem: Apprentice, Assassin, Bertilak, Caelia, Dagonet, Elaine, Galahad,
-#        Gawain, Guinevere, Iseult, King Arthur, Lancelot, Bad Lance,
-#        Loyal Servant, Lucius, Maduc, Mark, Meleagant, Merlin, Minion,
-#        Mordred, Morgana, Nimue (E), Nimue (G), Oberon, Palamedes,
-#        Penpingion, Percival, Puck, Queen Mab, Sir Kay,
-#        The Witch of Caerlloyw, Tristan, Vortigern
-# =============================================================================
-PIVOT_COL = {
-    "apprentice":             "B",
-    "assassin":               "C",
-    "bertilak":               "D",
-    "caelia":                 "E",
-    "dagonet":                "F",
-    "elaine":                 "G",
-    "galahad":                "H",
-    "gawain":                 "I",
-    "guinevere":              "J",
-    "iseult":                 "K",
-    "king arthur":            "L",
-    "lancelot":               "M",
-    "bad lancelot":           "N",
-    "loyal servant":          "O",
-    "lucius":                 "P",
-    "maduc":                  "Q",
-    "mark":                   "R",
-    "meleagant":              "S",
-    "merlin":                 "T",
-    "minion":                 "U",
-    "mordred":                "V",
-    "morgana":                "W",
-    "nimue (e)":              "X",
-    "nimue (g)":              "Y",
-    "oberon":                 "Z",
-    "palamedes":              "AA",
-    "penpingion":             "AB",
-    "percival":               "AC",
-    "puck":                   "AD",
-    "queen mab":              "AE",
-    "sir kay":                "AF",
-    "the witch of caerlloyw": "AG",
-    "tristan":                "AH",
-    "vortigern":              "AI",
-}
-
-# =============================================================================
 # MAPEAMENTO DE CÉLULAS POR ROLE
-# player_most e player_least inferidos da linha base de cada role
+# Evil  → player_most = B{row}, player_least = C{row}
+# Good  → player_most = J{row}, player_least = K{row}
+# As fórmulas de player encontram a coluna da pivot pelo nome da role automaticamente
 # =============================================================================
 CELLS_MAP = {
     # -------------------- EVIL ROLES --------------------
@@ -124,7 +77,7 @@ CELLS_MAP = {
 
 # =============================================================================
 # FÓRMULAS
-# Mude aqui se precisar ajustar a lógica das fórmulas no futuro
+# Mude aqui se precisar ajustar a lógica no futuro
 # =============================================================================
 
 def formula_games_won(role: str, is_evil: bool) -> str:
@@ -155,38 +108,100 @@ def formula_nimue_tie_loss(role: str, is_evil: bool) -> str:
         f' - SUMIFS(\'Game Log\'!$F$2:$F,\'Game Log\'!$C$2:$C,"{role}",\'Game Log\'!$E$2:$E,"{outcome}")'
     )
 
-def formula_player_most(pivot_col: str) -> str:
+def formula_player_most(role_display: str) -> str:
+    # role_display = nome com capitalização correta (ex: "Bad Lancelot", "King Arthur")
     return (
-        f"=LET("
-        f"jogadores,'Role Breakdown'!$A$3:$A$59,"
-        f"counts,'Role Breakdown'!{pivot_col}$3:{pivot_col}$59,"
-        f"datas,ARRAYFORMULA(IFERROR(VLOOKUP(jogadores,'Player Last Played'!$A$2:$C$58,2,FALSE),0)),"
-        f"bucket,ARRAYFORMULA(IFERROR(VLOOKUP(jogadores,'Player Last Played'!$A$2:$C$58,3,FALSE),3)),"
-        f"mask,ARRAYFORMULA(counts>0),"
-        f"jogs_f,FILTER(jogadores,mask),"
-        f"counts_f,FILTER(counts,mask),"
-        f"bucket_f,FILTER(bucket,mask),"
-        f"datas_f,FILTER(datas,mask),"
-        f"sorted,SORT(HSTACK(jogs_f,counts_f,bucket_f,datas_f),3,TRUE,2,FALSE,4,FALSE),"
-        f"ARRAY_CONSTRAIN(INDEX(sorted,,1),3,1))"
+        "=LET("
+        f'roleName,"{role_display}",'
+        "colNum,IFERROR(MATCH(roleName,'Role Breakdown'!$A$2:$AI$2,0),-1),"
+        "players,'Role Breakdown'!$A$3:$A$59,"
+        "counts,IF(colNum=-1,ARRAYFORMULA(IF(players<>\"\",0,\"\")),ARRAYFORMULA(OFFSET('Role Breakdown'!$A$3,0,colNum-1,57,1))),"
+        "buckets,ARRAYFORMULA(IFERROR(VLOOKUP(players,backupthing!$A$2:$C$200,3,FALSE),999)),"
+        "lastPlayed,ARRAYFORMULA(IFERROR(VLOOKUP(players,backupthing!$A$2:$B$200,2,FALSE),DATE(1900,1,1))),"
+        "isCurrent,ARRAYFORMULA((buckets<=1)*ISNUMBER(counts)*(counts>0)),"
+        "validCounts,ARRAYFORMULA(IF(isCurrent,counts,-1)),"
+        "maxVal1,MAX(validCounts),"
+        "tieDates1,ARRAYFORMULA(IF(validCounts=maxVal1,lastPlayed,DATE(1900,1,1))),"
+        "newestDate1,MAX(tieDates1),"
+        "name1,IFERROR(INDEX(players,MATCH(newestDate1,tieDates1,0)),\"\"),"
+        "validCounts2,ARRAYFORMULA(IF(players=name1,-1,validCounts)),"
+        "maxVal2,MAX(validCounts2),"
+        "tieDates2,ARRAYFORMULA(IF(validCounts2=maxVal2,lastPlayed,DATE(1900,1,1))),"
+        "newestDate2,MAX(tieDates2),"
+        "name2,IF(maxVal2<=0,\"\",IFERROR(INDEX(players,MATCH(newestDate2,tieDates2,0)),\"\")),"
+        "validCounts3,ARRAYFORMULA(IF(players=name2,-1,validCounts2)),"
+        "maxVal3,MAX(validCounts3),"
+        "tieDates3,ARRAYFORMULA(IF(validCounts3=maxVal3,lastPlayed,DATE(1900,1,1))),"
+        "newestDate3,MAX(tieDates3),"
+        "name3,IF(maxVal3<=0,\"\",IFERROR(INDEX(players,MATCH(newestDate3,tieDates3,0)),\"\")),"
+        "IF(colNum=-1,\"Role not found\",IF(maxVal1<=0,\"N/A\",VSTACK(name1,IF(name2=\"\",\"\",name2),IF(name3=\"\",\"\",name3)))))"
     )
 
-def formula_player_least(pivot_col: str) -> str:
+def formula_player_least(role_display: str) -> str:
     return (
-        f"=LET("
-        f"jogadores,'Role Breakdown'!$A$3:$A$59,"
-        f"counts,'Role Breakdown'!{pivot_col}$3:{pivot_col}$59,"
-        f"datas,ARRAYFORMULA(IFERROR(VLOOKUP(jogadores,'Player Last Played'!$A$2:$C$58,2,FALSE),0)),"
-        f"bucket,ARRAYFORMULA(IFERROR(VLOOKUP(jogadores,'Player Last Played'!$A$2:$C$58,3,FALSE),3)),"
-        f"mask,ARRAYFORMULA(counts>0),"
-        f"jogs_f,FILTER(jogadores,mask),"
-        f"counts_f,FILTER(counts,mask),"
-        f"bucket_f,FILTER(bucket,mask),"
-        f"datas_f,FILTER(datas,mask),"
-        f"sorted,SORT(HSTACK(jogs_f,counts_f,bucket_f,datas_f),3,TRUE,2,TRUE,4,FALSE),"
-        f"ARRAY_CONSTRAIN(INDEX(sorted,,1),3,1))"
+        "=LET("
+        f'roleName,"{role_display}",'
+        "colNum,IFERROR(MATCH(roleName,'Role Breakdown'!$A$2:$AI$2,0),-1),"
+        "players,'Role Breakdown'!$A$3:$A$59,"
+        "counts,IF(colNum=-1,ARRAYFORMULA(IF(players<>\"\",0,\"\")),ARRAYFORMULA(OFFSET('Role Breakdown'!$A$3,0,colNum-1,57,1))),"
+        "buckets,ARRAYFORMULA(IFERROR(VLOOKUP(players,backupthing!$A$2:$C$200,3,FALSE),999)),"
+        "lastPlayed,ARRAYFORMULA(IFERROR(VLOOKUP(players,backupthing!$A$2:$B$200,2,FALSE),DATE(2099,1,1))),"
+        "isCurrent,ARRAYFORMULA((buckets<=1)*ISNUMBER(counts)*(counts>0)),"
+        "validCounts,ARRAYFORMULA(IF(isCurrent,counts,999999)),"
+        "minVal1,MIN(validCounts),"
+        "tieDates1,ARRAYFORMULA(IF(validCounts=minVal1,lastPlayed,DATE(2099,1,1))),"
+        "oldestDate1,MIN(tieDates1),"
+        "name1,IFERROR(INDEX(players,MATCH(oldestDate1,tieDates1,0)),\"\"),"
+        "validCounts2,ARRAYFORMULA(IF(players=name1,999999,validCounts)),"
+        "minVal2,MIN(validCounts2),"
+        "tieDates2,ARRAYFORMULA(IF(validCounts2=minVal2,lastPlayed,DATE(2099,1,1))),"
+        "oldestDate2,MIN(tieDates2),"
+        "name2,IF(minVal2>=999999,\"\",IFERROR(INDEX(players,MATCH(oldestDate2,tieDates2,0)),\"\")),"
+        "validCounts3,ARRAYFORMULA(IF(players=name2,999999,validCounts2)),"
+        "minVal3,MIN(validCounts3),"
+        "tieDates3,ARRAYFORMULA(IF(validCounts3=minVal3,lastPlayed,DATE(2099,1,1))),"
+        "oldestDate3,MIN(tieDates3),"
+        "name3,IF(minVal3>=999999,\"\",IFERROR(INDEX(players,MATCH(oldestDate3,tieDates3,0)),\"\")),"
+        "IF(colNum=-1,\"Role not found\",IF(minVal1>=999999,\"N/A\",VSTACK(name1,IF(name2=\"\",\"\",name2),IF(name3=\"\",\"\",name3)))))"
     )
 
+# Capitalização correta de cada role para o MATCH na pivot
+ROLE_DISPLAY = {
+    "assassin":               "Assassin",
+    "bertilak":               "Bertilak",
+    "dagonet":                "Dagonet",
+    "lucius":                 "Lucius",
+    "maduc":                  "Maduc",
+    "mark":                   "Mark",
+    "meleagant":              "Meleagant",
+    "mordred":                "Mordred",
+    "morgana":                "Morgana",
+    "oberon":                 "Oberon",
+    "puck":                   "Puck",
+    "queen mab":              "Queen Mab",
+    "vortigern":              "Vortigern",
+    "minion":                 "Minion",
+    "bad lancelot":           "Bad Lance",
+    "nimue (e)":              "Nimue (E)",
+    "the witch of caerlloyw": "The Witch of Caerlloyw",
+    "merlin":                 "Merlin",
+    "apprentice":             "Apprentice",
+    "caelia":                 "Caelia",
+    "elaine":                 "Elaine",
+    "galahad":                "Galahad",
+    "gawain":                 "Gawain",
+    "guinevere":              "Guinevere",
+    "king arthur":            "King Arthur",
+    "palamedes":              "Palamedes",
+    "percival":               "Percival",
+    "sir kay":                "Sir Kay",
+    "loyal servant":          "Loyal Servant",
+    "tristan":                "Tristan",
+    "iseult":                 "Iseult",
+    "lancelot":               "Lancelot",
+    "nimue (g)":              "Nimue (G)",
+    "penpingion":             "Penpingion",
+}
 
 # =============================================================================
 # PARÂMETROS DISPONÍVEIS
@@ -201,10 +216,11 @@ PARAMS = {
     "7": "todos",
 }
 
-def _get_formula(param: str, role: str, is_evil: bool, row: int, pivot_col: str) -> tuple[str, str]:
+def _get_formula(param: str, role: str, is_evil: bool, row: int) -> tuple[str, str]:
     """Retorna (célula, fórmula) para um parâmetro e role."""
-    col_most  = "B"
-    col_least = "C"
+    col_most  = "B" if is_evil else "J"
+    col_least = "C" if is_evil else "K"
+    display   = ROLE_DISPLAY.get(role, role.title())
 
     if param == "games_won":
         return CELLS_MAP[role]["games_won"], formula_games_won(role, is_evil)
@@ -215,9 +231,9 @@ def _get_formula(param: str, role: str, is_evil: bool, row: int, pivot_col: str)
     elif param == "nimue_tie_loss":
         return CELLS_MAP[role]["nimue_tie_loss"], formula_nimue_tie_loss(role, is_evil)
     elif param == "player_most":
-        return f"{col_most}{row}", formula_player_most(pivot_col)
+        return f"{col_most}{row}", formula_player_most(display)
     elif param == "player_least":
-        return f"{col_least}{row}", formula_player_least(pivot_col)
+        return f"{col_least}{row}", formula_player_least(display)
 
 
 # =============================================================================
@@ -228,7 +244,6 @@ def main():
     print("  Role Stats — Upload de Fórmulas")
     print("=" * 52)
 
-    # --- Escolha dos parâmetros ---
     print("\nParâmetros disponíveis:")
     for k, v in PARAMS.items():
         print(f"  {k}) {v}")
@@ -246,7 +261,6 @@ def main():
 
     print(f"\n✅ Parâmetros selecionados: {', '.join(params_selecionados)}")
 
-    # --- Conecta ao Sheets ---
     print("\n📊 Conectando ao Google Sheets...")
     creds  = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPES)
     client = gspread.authorize(creds)
@@ -258,24 +272,18 @@ def main():
         print(f"❌ Erro ao acessar planilha: {e}")
         return
 
-    # --- Atualiza ---
     total = len(CELLS_MAP)
     print(f"\n🔄 Atualizando {len(params_selecionados)} parâmetro(s) para {total} roles...\n")
 
     for role, cells in CELLS_MAP.items():
-        is_evil    = role in EVIL_ROLES
-        row        = cells["row"]
-        pivot_col  = PIVOT_COL.get(role, "")
+        is_evil = role in EVIL_ROLES
+        row     = cells["row"]
 
-        print(f"📌 {role.title()} ({'Evil' if is_evil else 'Good'})")
+        print(f"📌 {ROLE_DISPLAY.get(role, role.title())} ({'Evil' if is_evil else 'Good'})")
 
         for param in params_selecionados:
-            if param in ("player_most", "player_least") and not pivot_col:
-                print(f"   ⚠️  Coluna pivot não mapeada para '{role}', pulando {param}")
-                continue
-
             try:
-                celula, formula = _get_formula(param, role, is_evil, row, pivot_col)
+                celula, formula = _get_formula(param, role, is_evil, row)
                 pagina.update_acell(celula, formula)
                 print(f"   ✅ {param:20s} → {celula}")
                 time.sleep(SLEEP)

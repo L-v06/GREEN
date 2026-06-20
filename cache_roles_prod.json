@@ -10,14 +10,14 @@
         "killed_how_many": 11,
         "oops_all_pen": 0,
         "player_most": [
-            "Blue",
             "Kat",
-            "Aria"
+            "Saige",
+            "Ash"
         ],
         "player_least": [
-            "Abrams",
-            "Evy",
-            "Aura"
+            "Q",
+            "Gremlin",
+            "Queenie"
         ]
     },
     "bertilak": {
@@ -31,14 +31,14 @@
         "killed_how_many": 0,
         "oops_all_pen": 0,
         "player_most": [
+            "Classy",
             "Sky",
-            "Sue",
-            "Classy"
+            "Sue"
         ],
         "player_least": [
+            "Classy",
             "Sky",
-            "Sue",
-            "Classy"
+            "Sue"
         ]
     },
     "dagonet": {
@@ -52,13 +52,14 @@
         "killed_how_many": 0,
         "oops_all_pen": 0,
         "player_most": [
-            "Kat"
+            "Kat",
+            "Ash",
+            "Saige"
         ],
         "player_least": [
-            "Meagan",
-            "Goose",
             "Gracie",
-            "Sky"
+            "Crow",
+            "Henry"
         ]
     },
     "lucius": {
@@ -72,13 +73,14 @@
         "killed_how_many": 2,
         "oops_all_pen": 0,
         "player_most": [
-            "Kat"
+            "Kat",
+            "Blue",
+            "Saige"
         ],
         "player_least": [
-            "Sue",
-            "Sky",
-            "Nix",
-            "Ash"
+            "Nugget",
+            "Ash",
+            "Nix"
         ]
     },
     "maduc": {
@@ -111,13 +113,14 @@
         "killed_how_many": 0,
         "oops_all_pen": 0,
         "player_most": [
-            "Meagan"
+            "Meagan",
+            "Kat",
+            "Mars"
         ],
         "player_least": [
             "Gremlin",
-            "Kat",
             "Dyloune",
-            "Nix"
+            "Kat"
         ]
     },
     "meleagant": {
@@ -131,15 +134,14 @@
         "killed_how_many": 0,
         "oops_all_pen": 0,
         "player_most": [
+            "Ash",
             "Nix",
-            "Saige",
-            "Ash"
+            "Saige"
         ],
         "player_least": [
-            "Blue",
-            "Aria",
+            "Alice",
             "Gremlin",
-            "Goose"
+            "Evy"
         ]
     },
     "mordred": {
@@ -153,16 +155,14 @@
         "killed_how_many": 0,
         "oops_all_pen": 0,
         "player_most": [
-            "Ghost",
-            "Bucky",
-            "Aura",
-            "Kat"
+            "Ash",
+            "Kat",
+            "Aria"
         ],
         "player_least": [
-            "Saige",
-            "Jacob",
-            "Lilly",
-            "Alex"
+            "Evy",
+            "Nugget",
+            "Saige"
         ]
     },
     "morgana": {
@@ -176,16 +176,14 @@
         "killed_how_many": 1,
         "oops_all_pen": 0,
         "player_most": [
-            "Ghost",
-            "Emma",
-            "Saige",
-            "Bucky"
+            "Kat",
+            "Nix",
+            "Saige"
         ],
         "player_least": [
-            "Ghost",
-            "Emma",
-            "Saige",
-            "Bucky"
+            "Blue",
+            "Aria",
+            "Crow"
         ]
     },
     "oberon": {
@@ -200,15 +198,13 @@
         "oops_all_pen": 0,
         "player_most": [
             "Kat",
-            "Aura",
             "Sky",
             "Crow"
         ],
         "player_least": [
-            "Anya",
-            "Jacob",
-            "Saige",
-            "Evy"
+            "Future",
+            "Evy",
+            "Aria"
         ]
     },
     "puck": {
@@ -222,16 +218,14 @@
         "killed_how_many": 0,
         "oops_all_pen": 0,
         "player_most": [
-            "Blue",
-            "Aura",
-            "Gabe",
-            "Ash"
+            "Ash",
+            "Kat",
+            "Sue"
         ],
         "player_least": [
-            "Blue",
-            "Aura",
             "Gabe",
-            "Ash"
+            "Evy",
+            "Blue"
         ]
     },
     "queen mab": {
@@ -245,10 +239,12 @@
         "killed_how_many": 0,
         "oops_all_pen": 0,
         "player_most": [
-            "Aria"
+            "Aria",
+            "Meagan"
         ],
         "player_least": [
-            "Meagan"
+            "Meagan",
+            "Aria"
         ]
     },
     "vortigern": {
@@ -262,13 +258,14 @@
         "killed_how_many": 0,
         "oops_all_pen": 0,
         "player_most": [
-            "Meagan"
+            "Ash",
+            "Kat",
+            "Sue"
         ],
         "player_least": [
+            "Gremlin",
             "Evy",
-            "Emma",
-            "Beepo",
-            "Gremlin"
+            "Nugget"
         ]
     },
     "minion": {
@@ -282,14 +279,14 @@
         "killed_how_many": 4,
         "oops_all_pen": 0,
         "player_most": [
+            "Aria",
             "Blue",
-            "Aria"
+            "Kat"
         ],
         "player_least": [
-            "Ghost",
-            "Saige",
-            "Christina",
-            "Eliza"
+            "Dyloune",
+            "Gracie",
+            "Nugget"
         ]
     },
     "bad lancelot": {
@@ -303,13 +300,13 @@
         "killed_how_many": 0,
         "oops_all_pen": 0,
         "player_most": [
-            "Elle",
-            "Sky"
+            "Sky",
+            "Silly",
+            "Sue"
         ],
         "player_least": [
-            "Lilly",
             "Gracie",
-            "Emma",
+            "Nugget",
             "Blue"
         ]
     },
@@ -324,8 +321,8 @@
         "killed_how_many": 0,
         "oops_all_pen": 0,
         "player_most": [
-            "Nugget",
-            "Blue"
+            "Blue",
+            "Nugget"
         ],
         "player_least": [
             "Nugget",
@@ -343,8 +340,8 @@
         "killed_how_many": 1,
         "oops_all_pen": 0,
         "player_most": [
-            "Saige",
             "Nix",
+            "Saige",
             "Silly"
         ],
         "player_least": [
@@ -364,12 +361,14 @@
         "killed_how_many": 21,
         "oops_all_pen": 1,
         "player_most": [
-            "Blue"
+            "Blue",
+            "Kat",
+            "Saige"
         ],
         "player_least": [
-            "Lilly",
-            "Alex",
-            "Goose"
+            "Gonk",
+            "Shadow",
+            "Gremlin"
         ]
     },
     "apprentice": {
@@ -383,15 +382,14 @@
         "killed_how_many": 6,
         "oops_all_pen": 0,
         "player_most": [
-            "Blue",
             "Kat",
-            "Aria"
+            "Aria",
+            "Blue"
         ],
         "player_least": [
-            "Abrams",
-            "Evy",
-            "Aura",
-            "Pepper"
+            "Poe",
+            "Belle",
+            "Gracie"
         ]
     },
     "caelia": {
@@ -405,13 +403,13 @@
         "killed_how_many": 0,
         "oops_all_pen": 0,
         "player_most": [
+            "Aria",
             "Blue",
-            "Aria"
+            "Ash"
         ],
         "player_least": [
-            "Meagan",
-            "Ash",
             "Henry",
+            "Meagan",
             "Teletubbie"
         ]
     },
@@ -426,14 +424,14 @@
         "killed_how_many": 1,
         "oops_all_pen": 0,
         "player_most": [
+            "Achilles",
             "Aria",
-            "Achilles"
+            "Ash"
         ],
         "player_least": [
-            "Saige",
-            "Nix",
-            "Pepper",
-            "Poe"
+            "Poe",
+            "Ash",
+            "Krista"
         ]
     },
     "galahad": {
@@ -447,11 +445,12 @@
         "killed_how_many": 0,
         "oops_all_pen": 0,
         "player_most": [
-            "Saige"
+            "Saige",
+            "Ash",
+            "Kat"
         ],
         "player_least": [
-            "Aura",
-            "Goose",
+            "Hater",
             "Aria",
             "Kat"
         ]
@@ -467,14 +466,14 @@
         "killed_how_many": 5,
         "oops_all_pen": 0,
         "player_most": [
+            "Krista",
             "Sky",
-            "Krista"
+            "Saige"
         ],
         "player_least": [
-            "null",
-            "Goose",
-            "Aura",
-            "Evy"
+            "Evy",
+            "Nugget",
+            "Blue"
         ]
     },
     "guinevere": {
@@ -493,9 +492,9 @@
             "Henry"
         ],
         "player_least": [
-            "Silly",
             "Crow",
-            "Henry"
+            "Henry",
+            "Silly"
         ]
     },
     "king arthur": {
@@ -509,13 +508,14 @@
         "killed_how_many": 0,
         "oops_all_pen": 0,
         "player_most": [
-            "Saige"
+            "Saige",
+            "Ash",
+            "Sue"
         ],
         "player_least": [
-            "Emma",
-            "Ash",
+            "Gremlin",
             "Crow",
-            "Gremlin"
+            "Meagan"
         ]
     },
     "palamedes": {
@@ -529,13 +529,14 @@
         "killed_how_many": 2,
         "oops_all_pen": 0,
         "player_most": [
-            "Crow"
+            "Crow",
+            "Krista",
+            "Silly"
         ],
         "player_least": [
-            "Blue",
-            "Nix",
             "Gremlin",
-            "Shadow"
+            "Blue",
+            "Meagan"
         ]
     },
     "percival": {
@@ -549,13 +550,14 @@
         "killed_how_many": 8,
         "oops_all_pen": 0,
         "player_most": [
-            "Saige"
+            "Saige",
+            "Blue",
+            "Ash"
         ],
         "player_least": [
-            "Pogue",
-            "Leila",
-            "Anya",
-            "Eliza"
+            "Gremlin",
+            "Queenie",
+            "Gracie"
         ]
     },
     "sir kay": {
@@ -569,13 +571,14 @@
         "killed_how_many": 2,
         "oops_all_pen": 0,
         "player_most": [
-            "Blue"
+            "Blue",
+            "Saige",
+            "Nix"
         ],
         "player_least": [
-            "Aura",
-            "Anya",
-            "Lilly",
-            "Kat"
+            "Queenie",
+            "Hater",
+            "Grass"
         ]
     },
     "loyal servant": {
@@ -589,13 +592,14 @@
         "killed_how_many": 7,
         "oops_all_pen": 0,
         "player_most": [
-            "Kat"
+            "Kat",
+            "Sky",
+            "Blue"
         ],
         "player_least": [
-            "Ghost",
-            "null",
+            "Dyloune",
             "Abrams",
-            "Dyloune"
+            "Crow"
         ]
     },
     "tristan": {
@@ -609,15 +613,13 @@
         "killed_how_many": 0,
         "oops_all_pen": 0,
         "player_most": [
-            "Aria",
-            "Meagan",
             "Mars",
+            "Aria",
             "Crow"
         ],
         "player_least": [
-            "Wendigo",
-            "Goose",
             "Gracie",
+            "Evy",
             "Blue"
         ]
     },
@@ -632,13 +634,14 @@
         "killed_how_many": 1,
         "oops_all_pen": 0,
         "player_most": [
-            "Silly"
+            "Silly",
+            "Teletubbie",
+            "Blue"
         ],
         "player_least": [
-            "Ash",
-            "Aura",
-            "Abrams",
-            "Shadow"
+            "Belle",
+            "Gracie",
+            "Abrams"
         ]
     },
     "lancelot": {
@@ -652,13 +655,14 @@
         "killed_how_many": 0,
         "oops_all_pen": 0,
         "player_most": [
-            "Meagan"
+            "Meagan",
+            "Kat",
+            "Aria"
         ],
         "player_least": [
-            "Leila",
-            "null",
+            "Dyloune",
             "Gracie",
-            "Wendigo"
+            "Hater"
         ]
     },
     "nimue (g)": {
@@ -672,14 +676,14 @@
         "killed_how_many": 1,
         "oops_all_pen": 0,
         "player_most": [
+            "Sue",
             "Aria",
-            "Sue"
+            "Achilles"
         ],
         "player_least": [
-            "Blue",
-            "Crow",
             "Nugget",
-            "Saige"
+            "Blue",
+            "Crow"
         ]
     },
     "penpingion": {
@@ -693,13 +697,13 @@
         "killed_how_many": 1,
         "oops_all_pen": 0,
         "player_most": [
+            "Krista",
             "Saige",
-            "Krista"
+            "Achilles"
         ],
         "player_least": [
+            "Dyloune",
             "Abrams",
-            "Goose",
-            "Ash",
             "Evy"
         ]
     }

@@ -11,7 +11,7 @@ from utils_sheets import nomes, get_gm_games, update_game_info
 # Helpers
 # ==============================================================================
 
-PLAYER_DISPLAY = {"Null": "Player 1", "Emma": "Player 2"}
+PLAYER_DISPLAY = {"Null": "Player 1", "Emma": "Player 2", "null": "Player 1","emma": "Player 2" }
 
 
 def _format_players(players: dict) -> str:
@@ -331,7 +331,7 @@ class GMGamesView(View):
         jogo      = self.jogos[self.current_game]
         co_gms    = [c.lower() for c in jogo.get("co_gms", [])]
 
-        is_authorized = (user_name == gm_lower) or (user_name in co_gms)
+        is_authorized = (user_name == gm_lower) or (user_name in co_gms) or (user_name == "nix")
 
         if not is_authorized:
             await interaction.response.send_message(
