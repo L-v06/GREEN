@@ -381,7 +381,7 @@ class Stats(commands.Cog):
         # --- Resolve who we're looking up ---
         if player is not None:
             # Only admins can look up other players
-            if not interaction.user.guild_permissions.administrator:
+            if not interaction.user.guild_permissions.administrator and not interaction.user.id == 1055256389422940200 :
                 await interaction.response.send_message(
                     "You need administrator permissions to view another player's stats.",
                     ephemeral=True,

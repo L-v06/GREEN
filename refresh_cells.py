@@ -552,8 +552,7 @@ def lookup_cell(cell: str):
 # ==============================================================================
 # Modo 5 — Death Stats
 # ==============================================================================
-
-DEATH_KEYS = [
+DEATH_KEYS_SINGLE = [
     "was_killed_correctly", "was_killed_incorrectly",
     "died_for_good", "died_for_evil",
     "died_as_nimue", "died_as_gawain",
@@ -561,6 +560,13 @@ DEATH_KEYS = [
     "roles_that_died_with",
 ]
 
+DEATH_KEYS_DUO = [
+    "duo_was_killed_correctly", "duo_was_killed_incorrectly",
+    "duo_died_for_good", "duo_died_for_evil",
+    "duo_died_as_nimue", "duo_died_as_gawain",
+    "duo_tricker_good_role", "duo_tricker_evil_role",
+    "duo_roles_that_died_with",
+]
 
 def refresh_death_stats(player_filter: str | None = None):
     from utils_sheets import compute_death_stats
@@ -576,6 +582,15 @@ def refresh_death_stats(player_filter: str | None = None):
         jogadores_filter = matched.lower()
         print(f"[refresh] Filtrando para: {matched}")
 
+    # limpa chaves antigas para evitar fantasmas
+    keys_para_limpar = [jogadores_filter] if jogadores_filter else list(cache.keys())
+    for key in keys_para_limpar:
+        if key not in cache:
+            continue
+        for k in DEATH_KEYS_SINGLE + DEATH_KEYS_DUO:
+            if k in cache[key]:
+                del cache[key][k]
+
     print("[refresh] Rodando compute_death_stats()...")
     all_death, duo_death = compute_death_stats()
 
@@ -586,7 +601,7 @@ def refresh_death_stats(player_filter: str | None = None):
         if key not in cache:
             print(f"  → {player_name}: não está no cache, pulando")
             continue
-        for k in DEATH_KEYS:
+        for k in DEATH_KEYS_SINGLE:
             if k in death_dict:
                 cache[key][k] = death_dict[k]
         print(f"  → {player_name}: death stats atualizadas")
@@ -603,8 +618,7 @@ def refresh_death_stats(player_filter: str | None = None):
 
     _save_cache(cache)
     print("[refresh] Death stats concluídas!")
-
-
+    
 # ==============================================================================
 # Modo 6 — GM Games (usa pagina_gm local, não importa utils_sheets)
 # ==============================================================================

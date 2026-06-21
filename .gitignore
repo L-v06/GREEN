@@ -30,3 +30,7 @@ cache_games_prod.json
 
 stats_cache_dev.json
 cache_games_dev.json
+
+cache_roles_dev.json
+cache_roles_prod.json
+

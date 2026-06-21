@@ -149,12 +149,13 @@ def _update_death_dict(death_dict: dict, player: str, who_wins: str, role_died: 
 def compute_death_stats():
     
     deaths_ws = planilha.worksheet('Death Log')
-    data = deaths_ws.get_all_values()[1:]  # ignora cabeçalho
+    data = deaths_ws.get_all_values()[1:]
 
     all_death_stats = {}
     duo_death_stats = {}
 
     for row in data:
+        game_date = row[0].strip()         if len(row) > 0 else ""
         gm_type   = row[2].strip().lower() if len(row) > 2 else ""
         game_type = row[3].strip().lower() if len(row) > 3 else ""
         who_wins  = row[4].strip().lower() if len(row) > 4 else ""
@@ -168,20 +169,32 @@ def compute_death_stats():
             continue
 
         names = [n.strip() for n in who_died.split(",") if n.strip()]
-
-        
         is_duo = len(names) >= 2
+
+        if game_date == "12/17/2024":
+            is_duo = False
 
         for name in names:
             player = _fuzzy_match_name_local(name, nomes)
+
             if not player:
                 print(f"[DEATH STATS] Nome não encontrado na Death Log: '{name}'")
                 continue
 
-            if is_duo:
-                _update_death_dict(duo_death_stats, player, who_wins, role_died)
+            if game_date == "12/17/2024":
+                if player == "Ash":
+                    role_efetiva = "Dagonet"
+                elif player == "Aria":
+                    role_efetiva = "Percival"
+                else:
+                    continue
             else:
-                _update_death_dict(all_death_stats, player, who_wins, role_died)
+                role_efetiva = role_died
+
+            if is_duo:
+                _update_death_dict(duo_death_stats, player, who_wins, role_efetiva)
+            else:
+                _update_death_dict(all_death_stats, player, who_wins, role_efetiva)
 
     return all_death_stats, duo_death_stats
 
