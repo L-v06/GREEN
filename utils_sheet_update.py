@@ -15,6 +15,10 @@ def add_one_day(date_str: str, input_format="%m/%d/%Y", output_format="%m/%d/%Y"
     return dt.strftime(output_format)
 
 
+def remove_zeros(date_str: str, input_format: str = "%m/%d/%Y") -> str:
+    dt = datetime.strptime(date_str, input_format)
+    return f"{dt.month}/{dt.day}/{dt.year}"
+
 def determine_gm_type(gm_name_list: list[str]) -> str:
     count = len(gm_name_list)
     if count == 1:   return "Single"
@@ -38,8 +42,16 @@ def determine_game_type(players: list[dict]) -> str:
     return "Mixed"
 
 
-
 def parse_death_info(embed) -> dict | None:
+    """
+    Extrai do embed informações de morte.
+    Exemplos suportados:
+        ☠️ Nix (The Witch of Caerlloyw) was killed
+        💀 Deaths
+        ☠️ Nome (Papel) was killed
+        Death: nome1, nome2 as papel1, papel2
+        Nome (Papel) was killed   ← no footer, sem emoji
+    """
     text = embed.description or ""
     for field in embed.fields:
         text += "\n" + (field.value or "")
@@ -66,14 +78,16 @@ def parse_death_info(embed) -> dict | None:
     if match:
         return {"who_died": [match.group(1).strip()], "role_died": [match.group(2).strip()]}
 
-    # Padrão 4 (novo): "Nome (Papel) was killed" sem emoji — vem no footer
-    kills = re.findall(r"([A-Za-z][A-Za-zÀ-ÿ\s\-']+?)\s*\(([^)]+)\)\s*was\s+killed", text, re.IGNORECASE)
+    # Padrão 4: "Nome (Papel) was killed" no footer — formato fixo do bot, sem emoji
+    kills = re.findall(r"^([^\n(]+?)\s*\(([^)]+)\)\s*was\s+killed$", text, re.IGNORECASE | re.MULTILINE)
     if kills:
-        who_died = [n.strip() for n, _ in kills]
-        role_died = [r.strip() for _, r in kills]
-        return {"who_died": who_died, "role_died": role_died}
+        return {
+            "who_died": [n.strip() for n, _ in kills],
+            "role_died": [r.strip() for _, r in kills]
+        }
 
     return None
+
 
 # ==============================================================================
 # Construção das linhas para Game Log
@@ -135,6 +149,7 @@ def build_game_log_rows(data: dict) -> list[list]:
     vote = data["vote"]
     start_date = data["date"]                   # já está em MM/DD/YYYY
     start_date_plus1 = add_one_day(start_date)  # <<< +1 dia corrigido aqui
+    start_date_plus1 = remove_zeros(start_date_plus1) # <<< sem o zero que dava erro 
 
     def sort_key(p):
         r = p["role"].strip().lower()
@@ -220,6 +235,7 @@ def build_death_log_rows(date: str, end_date: str, gm: str, gm_type: str,
         return []
 
     start_date_plus1 = add_one_day(date)
+    start_date_plus1 = remove_zeros(start_date_plus1)  
     rows = []
     who_died_list = deaths["who_died"]
     role_died_list = deaths["role_died"]
