@@ -25,7 +25,7 @@ load_dotenv()
 
 
 PINK_BOT_ID = int(os.getenv("PINK_BOT_ID", 0))
-TRIGGER_PHRASE = "Hey Green here is the log"
+TRIGGER_PHRASE = "Hey Green here is the log:"
 
 # ==============================================================================
 # Role lists
@@ -34,7 +34,7 @@ GOOD_ROLES = [
     'merlin', 'apprentice', 'caelia', 'elaine', 'galahad', 'gawain',
     'guinevere', 'king arthur', 'palamedes', 'percival', 'sir kay',
     'tristan', 'iseult', 'loyal servant of arthur', 'penpingion',
-    'good lancelot', 'nimue (g)'
+    'good lancelot', 'nimue (g)','Untrustworthy Servant'
 ]
 EVIL_ROLES = [
     'assassin', 'bertilak', 'dagonet', 'lucius', 'maduc', 'mark',
@@ -354,7 +354,7 @@ async def process_log_message(
 
     preview = (
         f"📋 **Game ready to write**\n"
-        f"**Start:** {add_one_day(data['start_date'])} | **End:** {data['end_date']}\n"
+        f"**Start:** {remove_zeros(add_one_day(data['start_date']))} | **End:** {data['end_date']}\n"
         f"**GM:** {', '.join(gm_names)} ({gm_type}) | **Type:** {game_type}\n"
         f"**Outcome:** {who_wins}\n"
         f"{warning_text}"
