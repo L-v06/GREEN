@@ -73,6 +73,7 @@ CELLS_MAP = {
     "lancelot":               {"row": 311, "games_won": "L311", "games_lost": "M311", "gawain_loss": "N311", "nimue_tie_loss": "O311"},
     "nimue (g)":              {"row": 333, "games_won": "L333", "games_lost": "M333", "gawain_loss": "N333", "nimue_tie_loss": "O333"},
     "penpingion":             {"row": 355, "games_won": "L355", "games_lost": "M355", "gawain_loss": "N355", "nimue_tie_loss": "O355"},
+    "untrustworthy servant":  {"row": 377, "games_won": "L355", "games_lost": "M355", "gawain_loss": "N355", "nimue_tie_loss": "O355"},
 }
 
 # =============================================================================
@@ -113,9 +114,9 @@ def formula_player_most(role_display: str) -> str:
     return (
         "=LET("
         f'roleName,"{role_display}",'
-        "colNum,IFERROR(MATCH(roleName,'Role Breakdown'!$A$2:$AI$2,0),-1),"
-        "players,'Role Breakdown'!$A$3:$A$59,"
-        "counts,IF(colNum=-1,ARRAYFORMULA(IF(players<>\"\",0,\"\")),ARRAYFORMULA(OFFSET('Role Breakdown'!$A$3,0,colNum-1,57,1))),"
+        "colNum,IFERROR(MATCH(roleName,'Role Breakdown'!$A$2:$AJ$2,0),-1),"
+        "players,'Role Breakdown'!$A$3:$A$60,"
+        "counts,IF(colNum=-1,ARRAYFORMULA(IF(players<>\"\",0,\"\")),ARRAYFORMULA(OFFSET('Role Breakdown'!$A$3,0,colNum-1,58,1))),"
         "buckets,ARRAYFORMULA(IFERROR(VLOOKUP(players,backupthing!$A$2:$C$200,3,FALSE),999)),"
         "lastPlayed,ARRAYFORMULA(IFERROR(VLOOKUP(players,backupthing!$A$2:$B$200,2,FALSE),DATE(1900,1,1))),"
         "isCurrent,ARRAYFORMULA((buckets<=1)*ISNUMBER(counts)*(counts>0)),"
@@ -141,9 +142,9 @@ def formula_player_least(role_display: str) -> str:
     return (
         "=LET("
         f'roleName,"{role_display}",'
-        "colNum,IFERROR(MATCH(roleName,'Role Breakdown'!$A$2:$AI$2,0),-1),"
-        "players,'Role Breakdown'!$A$3:$A$59,"
-        "counts,IF(colNum=-1,ARRAYFORMULA(IF(players<>\"\",0,\"\")),ARRAYFORMULA(OFFSET('Role Breakdown'!$A$3,0,colNum-1,57,1))),"
+        "colNum,IFERROR(MATCH(roleName,'Role Breakdown'!$A$2:$AJ$2,0),-1),"
+        "players,'Role Breakdown'!$A$3:$A$60,"
+        "counts,IF(colNum=-1,ARRAYFORMULA(IF(players<>\"\",0,\"\")),ARRAYFORMULA(OFFSET('Role Breakdown'!$A$3,0,colNum-1,58,1))),"
         "buckets,ARRAYFORMULA(IFERROR(VLOOKUP(players,backupthing!$A$2:$C$200,3,FALSE),999)),"
         "lastPlayed,ARRAYFORMULA(IFERROR(VLOOKUP(players,backupthing!$A$2:$B$200,2,FALSE),DATE(2099,1,1))),"
         "isCurrent,ARRAYFORMULA((buckets<=1)*ISNUMBER(counts)*(counts>0)),"
@@ -201,6 +202,8 @@ ROLE_DISPLAY = {
     "lancelot":               "Lancelot",
     "nimue (g)":              "Nimue (G)",
     "penpingion":             "Penpingion",
+    "untrustworthy servant" :   "Untrustworthy Servant",
+    
 }
 
 # =============================================================================
