@@ -27,7 +27,7 @@ ALL_ROLES = [
     # Good
     "Merlin", "Apprentice", "Caelia", "Elaine", "Galahad", "Gawain",
     "Guinevere", "King Arthur", "Palamedes", "Percival", "Sir Kay",
-    "Loyal Servant", "Tristan", "Iseult", "Lancelot", "Nimue (G)", "Penpingion",
+    "Loyal Servant", "Tristan", "Iseult", "Lancelot", "Nimue (G)", "Penpingion", "Untrustworthy Servant",
 ]
 
 roles_cache: dict = {}
@@ -592,6 +592,7 @@ def load_all_roles(force: bool = False):
         "player_least":     _col_values_trimmed(dados, "K", 333, 336),
     }
 
+    
     roles_cache["penpingion"] = {
         "how_many_played":  _safe_int(_cell(dados, "I355")),
         "duo_games":        _safe_int(_cell(dados, "I358")),
@@ -605,7 +606,20 @@ def load_all_roles(force: bool = False):
         "player_most":      _col_values_trimmed(dados, "J", 355, 358),
         "player_least":     _col_values_trimmed(dados, "K", 355, 358),
     }
-
+    
+    roles_cache["untrustworthy servant"] = {
+            "how_many_played":  _safe_int(_cell(dados, "I376")),
+            "duo_games":        _safe_int(_cell(dados, "I358")),
+            "april_fools":      0,
+            "games_won":        _safe_int(_cell(dados, "L376")),
+            "games_lost":       _safe_int(_cell(dados, "M376")),
+            "gawain_loss":      _safe_int(_cell(dados, "N376")),
+            "nimue_tie_loss":   _safe_int(_cell(dados, "O376")),
+            "killed_how_many":  _safe_int(_cell(dados, "I390")),
+            "oops_all_pen":     0,
+            "player_most":      _col_values_trimmed(dados, "J", 377, 379),
+            "player_least":     _col_values_trimmed(dados, "K", 377, 379),
+        }
     _save_roles_cache()
     print(f"[roles] Cache completo ({len(roles_cache)} roles).")
 

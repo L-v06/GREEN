@@ -38,20 +38,16 @@ def determine_game_type(players: list[dict]) -> str:
     return "Mixed"
 
 
+
 def parse_death_info(embed) -> dict | None:
-    """
-    Extrai do embed informações de morte.
-    Exemplos suportados:
-        ☠️ Nix (The Witch of Caerlloyw) was killed
-        💀 Deaths
-        ☠️ Nome (Papel) was killed
-        Death: nome1, nome2 as papel1, papel2
-    """
     text = embed.description or ""
     for field in embed.fields:
         text += "\n" + (field.value or "")
+    # Inclui o footer também
+    if embed.footer and embed.footer.text:
+        text += "\n" + embed.footer.text
 
-    # Padrão 1: ☠️ Nome (Papel) was killed
+    # Padrão 1: ☠️ Nome (Papel) was killed / died
     kills = re.findall(r"☠️\s*(.+?)\s*\(([^)]+)\)\s*(?:was\s*killed|died)", text, re.IGNORECASE)
     if kills:
         who_died = [n.strip() for n, _ in kills]
@@ -70,8 +66,14 @@ def parse_death_info(embed) -> dict | None:
     if match:
         return {"who_died": [match.group(1).strip()], "role_died": [match.group(2).strip()]}
 
-    return None
+    # Padrão 4 (novo): "Nome (Papel) was killed" sem emoji — vem no footer
+    kills = re.findall(r"([A-Za-z][A-Za-zÀ-ÿ\s\-']+?)\s*\(([^)]+)\)\s*was\s+killed", text, re.IGNORECASE)
+    if kills:
+        who_died = [n.strip() for n, _ in kills]
+        role_died = [r.strip() for _, r in kills]
+        return {"who_died": who_died, "role_died": role_died}
 
+    return None
 
 # ==============================================================================
 # Construção das linhas para Game Log
