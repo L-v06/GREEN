@@ -1,255 +1,437 @@
-# utils_sheet_update.py
+# cog_update_sheet.py
+import discord
+from discord.ext import commands
+from discord import app_commands
 import re
-from datetime import datetime, timedelta
-from collections import Counter
-from utils_sheets import planilha, nomes
+import asyncio
+import os
+from dotenv import load_dotenv
+
+from utils_config import GUILD_ID,STATS_CHANNEL_ID
+from utils_sheets import nomes, load_all_players, load_all_gm_games
+from utils_sheet_update import (
+    add_one_day,
+    determine_gm_type,
+    determine_game_type,
+    parse_death_info,
+    build_game_log_rows,
+    write_game_log_rows,
+    build_death_log_rows,
+    write_death_log_rows,
+    remove_zeros,
+)
+
+load_dotenv()
+
+
+PINK_BOT_ID = int(os.getenv("PINK_BOT_ID", 0))
+TRIGGER_PHRASE = "Hey Green here is the log"
 
 # ==============================================================================
-# Helpers
+# Role lists
 # ==============================================================================
+GOOD_ROLES = [
+    'merlin', 'apprentice', 'caelia', 'elaine', 'galahad', 'gawain',
+    'guinevere', 'king arthur', 'palamedes', 'percival', 'sir kay',
+    'tristan', 'iseult', 'loyal servant of arthur', 'penpingion',
+    'good lancelot', 'nimue (g)'
+]
+EVIL_ROLES = [
+    'assassin', 'bertilak', 'dagonet', 'lucius', 'maduc', 'mark',
+    'meleagant', 'mordred', 'morgana', 'oberon', 'puck', 'queen mab',
+    'vortigern', 'the witch of caerlloyw', 'minion of morgana',
+    'bad lancelot', 'nimue (e)'
+]
+NIMUE_MAP = {
+    'evil nimue': 'Nimue (E)', 'bad nimue': 'Nimue (E)',
+    'e nimue': 'Nimue (E)', 'b nimue': 'Nimue (E)',
+    'nimue evil': 'Nimue (E)', 'nimue bad': 'Nimue (E)',
+    'nimue e': 'Nimue (E)', 'nimue b': 'Nimue (E)',
+    'good nimue': 'Nimue (G)', 'g nimue': 'Nimue (G)',
+    'nimue good': 'Nimue (G)', 'nimue g': 'Nimue (G)',
+}
 
-def add_one_day(date_str: str, input_format="%m/%d/%Y", output_format="%m/%d/%Y") -> str:
-    """Adiciona um dia à data (formato americano)."""
-    dt = datetime.strptime(date_str, input_format)
-    dt += timedelta(days=1)
-    return dt.strftime(output_format)
-
-
-def determine_gm_type(gm_name_list: list[str]) -> str:
-    count = len(gm_name_list)
-    if count == 1:   return "Single"
-    elif count == 2: return "Duo"
-    elif count == 3: return "Triple"
-    return "Multi"
-
-
-def determine_game_type(players: list[dict]) -> str:
-    """
-    Analisa os papéis de todos os jogadores:
-    - Se todos aparecem exatamente 1 vez → Solo
-    - Se todos aparecem exatamente 2 vezes → Pairs
-    - Qualquer outra combinação → Mixed
-    """
-    role_counts = Counter(p["role"].strip().lower() for p in players)
-    if all(v == 1 for v in role_counts.values()):
-        return "Solo"
-    if all(v == 2 for v in role_counts.values()):
-        return "Pairs"
-    return "Mixed"
+def normalize_role(role: str) -> str:
+    key = role.strip().lower()
+    return NIMUE_MAP.get(key, role.strip())
 
 
-def parse_death_info(embed) -> dict | None:
-    """
-    Extrai do embed informações de morte.
-    Exemplos suportados:
-        ☠️ Nix (The Witch of Caerlloyw) was killed
-        💀 Deaths
-        ☠️ Nome (Papel) was killed
-        Death: nome1, nome2 as papel1, papel2
-        Nome (Papel) was killed   ← no footer, sem emoji
-    """
-    text = embed.description or ""
+# ==============================================================================
+# Embed parser
+# ==============================================================================
+def parse_log_embed(embed: discord.Embed) -> dict | None:
+    if not embed.description:
+        return None
+
+    desc = embed.description
+
+    # Extrai ambas as datas do título: "Game dd/mm/yyyy - dd/mm/yyyy"
+    date_match = re.search(r"(\d{2}/\d{2}/\d{4})\s*[-–]\s*(\d{2}/\d{2}/\d{4})", embed.title or "")
+    if not date_match:
+        return None
+    raw_start = date_match.group(1)
+    raw_end = date_match.group(2)
+    d1, m1, y1 = raw_start.split("/")
+    d2, m2, y2 = raw_end.split("/")
+    start_date = f"{m1}/{d1}/{y1}"    # mm/dd/yyyy
+    end_date = f"{m2}/{d2}/{y2}"
+
+    # GM
+    gm = None
+    gm_match = re.search(r"GM:\s*(.+)", desc)
+    if gm_match:
+        gm = gm_match.group(1).strip()
+
+    # Players
+    players = []
+    for line in desc.splitlines():
+        stripped = line.strip().lstrip("*").lstrip("•").strip()
+        if not stripped or "Round Table" in stripped or "Quest Chat" in stripped:
+            continue
+        player_match = re.match(r"^(.+?):\s*(.+)$", stripped)
+        if player_match:
+            name = player_match.group(1).strip()
+            role = player_match.group(2).strip()
+            role = normalize_role(role)
+            if name.lower() == "gm":
+                continue
+            players.append({"name": name, "role": role})
+
+    # Outcome
+    outcome = None
+    outcome_raw = ""
     for field in embed.fields:
-        text += "\n" + (field.value or "")
-    # Inclui o footer também
-    if embed.footer and embed.footer.text:
-        text += "\n" + embed.footer.text
+        if "##" in (field.value or ""):
+            outcome_raw = field.value.strip().lower()
+            break
+    if not outcome_raw:
+        outcome_match = re.search(r"##\s*(.+)", desc)
+        if outcome_match:
+            outcome_raw = outcome_match.group(1).strip().lower()
 
-    # Padrão 1: ☠️ Nome (Papel) was killed / died
-    kills = re.findall(r"☠️\s*(.+?)\s*\(([^)]+)\)\s*(?:was\s*killed|died)", text, re.IGNORECASE)
-    if kills:
-        who_died = [n.strip() for n, _ in kills]
-        role_died = [r.strip() for _, r in kills]
-        return {"who_died": who_died, "role_died": role_died}
+    if "good wins" in outcome_raw or "good win" in outcome_raw:
+        outcome = "good_wins"
+    elif "evil wins" in outcome_raw or "evil win" in outcome_raw:
+        outcome = "evil_wins"
+    elif "gawain" in outcome_raw:
+        outcome = "gawain_wins"
+    elif "nimue" in outcome_raw or "draw" in outcome_raw:
+        outcome = "nimue_killed"
 
-    # Padrão 2: "Death: nome1, nome2 as papel1, papel2"
-    match = re.search(r"Death\s*:\s*(.+?)\s+as\s+(.+)", text, re.IGNORECASE)
-    if match:
-        names = [n.strip() for n in match.group(1).split(",")]
-        roles = [r.strip() for r in match.group(2).split(",")]
-        return {"who_died": names, "role_died": roles}
+    # Vote
+    vote = "nc"
+    footer_text = (embed.footer.text or "").lower()
+    if "not collected" in footer_text or "was not collected" in footer_text:
+        vote = "nc"
+    elif "voted correctly" in footer_text:
+        if "good voted correctly" in footer_text:
+            vote = "vc_good"
+        elif "evil voted correctly" in footer_text or "assassin vote" in footer_text:
+            vote = "vc_evil"
+        else:
+            vote = "vc"
+    elif "voted incorrectly" in footer_text or "incorrect" in footer_text:
+        if "good voted incorrectly" in footer_text:
+            vote = "vi_good"
+        elif "evil voted incorrectly" in footer_text or "assassin vote" in footer_text:
+            vote = "vi_evil"
+        else:
+            vote = "vi"
 
-    # Padrão 3: "Death: nome (papel)"
-    match = re.search(r"Death\s*:\s*(.+?)\s*\(([^)]+)\)", text, re.IGNORECASE)
-    if match:
-        return {"who_died": [match.group(1).strip()], "role_died": [match.group(2).strip()]}
+    if not players or not outcome:
+        return None
 
-    # Padrão 4: "Nome (Papel) was killed" no footer — formato fixo do bot, sem emoji
-    kills = re.findall(r"^([^\n(]+?)\s*\(([^)]+)\)\s*was\s+killed$", text, re.IGNORECASE | re.MULTILINE)
-    if kills:
-        return {
-            "who_died": [n.strip() for n, _ in kills],
-            "role_died": [r.strip() for _, r in kills]
-        }
-
-    return None
+    return {
+        "start_date": start_date,
+        "end_date": end_date,
+        "gm": gm,
+        "players": players,
+        "outcome": outcome,
+        "vote": vote,
+    }
 
 
 # ==============================================================================
-# Construção das linhas para Game Log
+# View para mapear nomes desconhecidos
 # ==============================================================================
-def _outcome_code(role: str, outcome: str) -> str:
-    r = role.strip().lower()
-    good = ['merlin', 'apprentice', 'caelia', 'elaine', 'galahad', 'gawain',
-            'guinevere', 'king arthur', 'palamedes', 'percival', 'sir kay',
-            'tristan', 'iseult', 'loyal servant of arthur', 'penpingion',
-            'good lancelot', 'nimue (g)']
-    evil = ['assassin', 'bertilak', 'dagonet', 'lucius', 'maduc', 'mark',
-            'meleagant', 'mordred', 'morgana', 'oberon', 'puck', 'queen mab',
-            'vortigern', 'the witch of caerlloyw', 'minion of morgana',
-            'bad lancelot', 'nimue (e)']
-    is_gawain = (r == 'gawain')
-    is_nimue = r in ['nimue (g)', 'nimue (e)']
-    is_good = r in good or is_gawain
-    is_evil = r in evil
+class NameMappingView(discord.ui.View):
+    def __init__(self, unknown_names: list[str], known_names: list[str]):
+        super().__init__(timeout=120)
+        self.unknown_names = list(set(unknown_names))
+        self.known_names = known_names
+        self.mapping = {}
+        self.finished = asyncio.Event()
 
-    if outcome == "gawain_wins":
-        return "gaw" if is_gawain else ("gal-e" if is_evil else "gal-g")
-    if outcome == "evil_wins":
-        return "ew" if is_evil else "gl"
-    if outcome == "good_wins":
-        return "gw" if is_good else "el"
-    if outcome in ("nimue_killed", "draw"):
-        return "tnl-g" if (is_good or is_gawain or is_nimue) else "tnl-e"
-    return ""
+        for i, uname in enumerate(self.unknown_names):
+            select = discord.ui.Select(
+                placeholder=f"Quem é '{uname}'?",
+                options=[discord.SelectOption(label=name) for name in known_names[:24]],
+                custom_id=f"map_{i}"
+            )
+            select.callback = self.make_callback(uname, select)
+            self.add_item(select)
 
+    def make_callback(self, unknown: str, select: discord.ui.Select):
+        async def callback(interaction: discord.Interaction):
+            self.mapping[unknown] = select.values[0]
+            await interaction.response.defer()
+            if len(self.mapping) == len(self.unknown_names):
+                self.finished.set()
+                self.stop()
+        return callback
 
-def _vote_code(role: str, vote: str) -> str:
-    if vote == "nc":
-        return ""
-    r = role.strip().lower()
-    good = ['merlin', 'apprentice', 'caelia', 'elaine', 'galahad', 'gawain',
-            'guinevere', 'king arthur', 'palamedes', 'percival', 'sir kay',
-            'tristan', 'iseult', 'loyal servant of arthur', 'penpingion',
-            'good lancelot', 'nimue (g)']
-    evil = ['assassin', 'bertilak', 'dagonet', 'lucius', 'maduc', 'mark',
-            'meleagant', 'mordred', 'morgana', 'oberon', 'puck', 'queen mab',
-            'vortigern', 'the witch of caerlloyw', 'minion of morgana',
-            'bad lancelot', 'nimue (e)']
-    is_good = r in good or r == 'gawain'
-    is_evil = r in evil
-
-    if vote == "vc_good":  return "vc" if is_good else ""
-    if vote == "vi_good":  return "vi" if is_good else ""
-    if vote == "vc_evil":  return "vc" if is_evil else ""
-    if vote == "vi_evil":  return "vi" if is_evil else ""
-    if vote == "vc":       return "vc"
-    if vote == "vi":       return "vi"
-    return ""
+    async def wait_for_mapping(self):
+        await self.finished.wait()
+        return self.mapping
 
 
-def build_game_log_rows(data: dict) -> list[list]:
-    """Constrói as linhas para a aba 'Game Log'. Aplica +1 dia na data."""
-    players = data["players"]
-    outcome = data["outcome"]
-    vote = data["vote"]
-    start_date = data["date"]                   # já está em MM/DD/YYYY
-    start_date_plus1 = add_one_day(start_date)  # <<< +1 dia corrigido aqui
+# ==============================================================================
+# ConfirmView (escreve ambas as planilhas + recarrega cache em thread separada)
+# ==============================================================================
+class ConfirmView(discord.ui.View):
+    def __init__(self, game_log_rows: list[list], death_log_rows: list[list],
+                 original_embed: discord.Embed, warnings: list[str]):
+        super().__init__(timeout=120)
+        self.game_log_rows = game_log_rows
+        self.death_log_rows = death_log_rows
+        self.original_embed = original_embed
+        self.warnings = warnings
+        self.responded = False
 
-    def sort_key(p):
-        r = p["role"].strip().lower()
-        good = ['merlin', 'apprentice', 'caelia', 'elaine', 'galahad', 'gawain',
-                'guinevere', 'king arthur', 'palamedes', 'percival', 'sir kay',
-                'tristan', 'iseult', 'loyal servant of arthur', 'penpingion',
-                'good lancelot', 'nimue (g)']
-        return 0 if r in good else 1
+    @discord.ui.button(label="✅ Yes, update sheet", style=discord.ButtonStyle.success)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.responded:
+            return
+        self.responded = True
+        self.clear_items()
+        await interaction.response.edit_message(content="⏳ Writing to sheets...", embed=None, view=self)
 
-    players_sorted = sorted(players, key=sort_key)
-    role_counts = Counter(p["role"].strip().lower() for p in players_sorted)
-    role_index = {}
+        try:
+            write_game_log_rows(self.game_log_rows)
+            write_death_log_rows(self.death_log_rows)
 
-    rows = []
-    for p in players_sorted:
-        name = p["name"]
-        role = p["role"]
-        role_key = role.strip().lower()
-        count = role_counts[role_key]
-        idx = role_index.get(role_key, 0)
-        role_index[role_key] = idx + 1
+            await interaction.followup.send(
+                "✅ Sheets updated! Reloading all caches (this may take a few minutes)...",
+                ephemeral=True
+            )
 
-        outcome_col = _outcome_code(role, outcome)
-        vote_col = _vote_code(role, vote)
+            # Recarrega stats + deaths
+            await asyncio.to_thread(load_all_players, force=True)
+            # Recarrega GM games (depende do stats cache já atualizado)
+            await asyncio.to_thread(load_all_gm_games, force=True)
 
-        col_f = ""
-        col_g = ""
-        col_i = ""
-        if count == 2:
-            col_i = "duo"
-            if idx == 0:
-                col_f = "1"
-                col_g = "Duo"
-        elif count == 3:
-            col_i = "triple"
-            if idx == 0:
-                col_f = "2"
-                col_g = "Triple"
+            await interaction.edit_original_response(
+                content=f"✅ Sheets updated! Game Log: {len(self.game_log_rows)} rows, "
+                        f"Death Log: {len(self.death_log_rows)} rows.\n"
+                        f"📊 All caches reloaded (stats, deaths, GM games).",
+                embed=None,
+                view=None
+            )
+        except Exception as e:
+            await interaction.edit_original_response(
+                content=f"❌ Error: `{e}`", embed=None, view=None
+            )
 
-        rows.append([start_date_plus1, name, role, "", outcome_col, col_f, col_g, vote_col, col_i])
-    return rows
-
-
-def _get_last_content_row(sheet) -> int:
-    """Retorna o número da última linha que contém qualquer valor (1-indexed)."""
-    all_values = sheet.get_all_values()
-    last = 0
-    for i, row in enumerate(all_values):
-        if any(cell.strip() for cell in row):
-            last = i + 1
-    return last
+    @discord.ui.button(label="❌ Cancel", style=discord.ButtonStyle.danger)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.responded:
+            return
+        self.responded = True
+        self.clear_items()
+        await interaction.response.edit_message(
+            content="🚫 Update cancelled. Nothing was written.",
+            embed=None,
+            view=None
+        )
 
 
-def write_game_log_rows(rows: list[list]):
-    """Escreve na aba 'Game Log', após uma linha em branco do último conteúdo."""
-    if not rows:
+# ==============================================================================
+# Processamento central
+# ==============================================================================
+async def process_log_message(
+    client: commands.Bot,
+    log_msg: discord.Message,
+    reply_target,
+    is_interaction: bool,
+):
+    stats_channel = client.get_channel(STATS_CHANNEL_ID)
+    if not stats_channel:
+        err = "❌ Couldn't find the `stats` channel. Check `STATS_CHANNEL_ID` in `.env`."
+        if is_interaction:
+            await reply_target.followup.send(err, ephemeral=True)
+        else:
+            await reply_target.channel.send(err)
         return
-    sheet = planilha.worksheet('Game Log')
-    last_row = _get_last_content_row(sheet)
-    start_row = last_row + 2
-    end_row = start_row + len(rows) - 1
 
-    sub_AB  = [[r[0], r[1]] for r in rows]
-    sub_C   = [[r[2]] for r in rows]
-    sub_E_I = [[r[4], r[5], r[6], r[7], r[8]] for r in rows]
-
-    sheet.update(f"A{start_row}:B{end_row}", sub_AB, value_input_option="USER_ENTERED")
-    sheet.update(f"C{start_row}:C{end_row}", sub_C, value_input_option="USER_ENTERED")
-    sheet.update(f"E{start_row}:I{end_row}", sub_E_I, value_input_option="USER_ENTERED")
-
-
-# ==============================================================================
-# Construção das linhas para Death Log
-# ==============================================================================
-def build_death_log_rows(date: str, end_date: str, gm: str, gm_type: str,
-                         game_type: str, who_wins: str,
-                         deaths: dict | None) -> list[list]:
-    """
-    Constrói as linhas para a aba 'Death Log'.
-    deaths: {'who_died': [nomes], 'role_died': [papéis]}
-    """
-    if not deaths or not deaths.get("who_died"):
-        return []
-
-    start_date_plus1 = add_one_day(date)
-    rows = []
-    who_died_list = deaths["who_died"]
-    role_died_list = deaths["role_died"]
-
-    for i in range(max(len(who_died_list), len(role_died_list))):
-        name = who_died_list[i] if i < len(who_died_list) else ""
-        role = role_died_list[i] if i < len(role_died_list) else ""
-        rows.append([
-            start_date_plus1, gm, gm_type, game_type,
-            who_wins, name, end_date, role
-        ])
-    return rows
-
-
-def write_death_log_rows(rows: list[list]):
-    """Escreve na aba 'Death Log', diretamente após a última linha preenchida."""
-    if not rows:
+    if not log_msg.embeds:
+        err = "❌ That message has no embeds."
+        if is_interaction:
+            await reply_target.followup.send(err, ephemeral=True)
+        else:
+            await reply_target.channel.send(err)
         return
-    sheet = planilha.worksheet('Death Log')
-    last_row = _get_last_content_row(sheet)
-    start_row = last_row + 1
-    end_row = start_row + len(rows) - 1
-    sheet.update(f"A{start_row}:H{end_row}", rows, value_input_option="USER_ENTERED")
+
+    original_embed = log_msg.embeds[0]
+    data = parse_log_embed(original_embed)
+    if not data:
+        err = "❌ Couldn't parse the log embed. Check its format."
+        if is_interaction:
+            await reply_target.followup.send(err, ephemeral=True)
+        else:
+            await reply_target.channel.send(err)
+        return
+
+    # --- Separar nomes dos GMs (pode ser múltiplos) ---
+    gm_names = [n.strip() for n in data["gm"].split(",")] if data["gm"] else []
+
+    # --- Coletar todos os nomes individuais (GMs e jogadores) ---
+    all_individual_names = gm_names + [p["name"] for p in data["players"]]
+    unknown = [name for name in all_individual_names if name and name not in nomes]
+
+    if unknown:
+        view = NameMappingView(unknown, nomes)
+        if is_interaction:
+            await reply_target.followup.send(
+                "Alguns nomes não foram reconhecidos. Selecione o nome correto:",
+                view=view,
+                ephemeral=True
+            )
+        else:
+            await reply_target.channel.send(
+                "Alguns nomes não foram reconhecidos. Selecione o nome correto:",
+                view=view
+            )
+        mapping = await view.wait_for_mapping()
+
+        # Aplica mapeamento nos GMs
+        gm_names = [mapping.get(name, name) for name in gm_names]
+        # Aplica nos jogadores
+        for p in data["players"]:
+            if p["name"] in mapping:
+                p["name"] = mapping[p["name"]]
+
+    # --- Tipos de jogo ---
+    gm_type = determine_gm_type(gm_names)
+    game_type = determine_game_type(data["players"])
+
+    outcome_map = {
+        "good_wins": "Good",
+        "evil_wins": "Evil",
+        "gawain_wins": "Gawain",
+        "nimue_killed": "Nimue"
+    }
+    who_wins = outcome_map.get(data["outcome"], "Unknown")
+
+    # --- Construir linhas ---
+    game_log_rows = build_game_log_rows({
+        "date": data["start_date"],
+        "players": data["players"],
+        "outcome": data["outcome"],
+        "vote": data["vote"]
+    })
+
+    death_info = parse_death_info(original_embed)
+    death_log_rows = build_death_log_rows(
+        date=data["start_date"],
+        end_date=data["end_date"],
+        gm=", ".join(gm_names),
+        gm_type=gm_type,
+        game_type=game_type,
+        who_wins=who_wins,
+        deaths=death_info
+    )
+
+    # --- Warnings ---
+    warnings = []
+    if not gm_names:
+        warnings.append("⚠️ GM name not found.")
+    if data.get("vote") == "nc":
+        warnings.append("⚠️ Vote was not collected.")
+    if not death_info:
+        warnings.append("⚠️ No death information found in embed.")
+
+    warning_text = "\n".join(warnings) if warnings else "✅ No issues found."
+
+    preview = (
+        f"📋 **Game ready to write**\n"
+        f"**Start:** {add_one_day(data['start_date'])} | **End:** {data['end_date']}\n"
+        f"**GM:** {', '.join(gm_names)} ({gm_type}) | **Type:** {game_type}\n"
+        f"**Outcome:** {who_wins}\n"
+        f"{warning_text}"
+    )
+
+    view = ConfirmView(game_log_rows, death_log_rows, original_embed, warnings)
+
+    await stats_channel.send(
+        content=preview,
+        embed=original_embed,
+        view=view,
+    )
+
+
+# ==============================================================================
+# Cog
+# ==============================================================================
+class UpdateSheet(commands.Cog):
+    def __init__(self, client):
+        self.client = client
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        if message.author.id != PINK_BOT_ID:
+            return
+        if message.channel.id != STATS_CHANNEL_ID:
+            return
+        if TRIGGER_PHRASE not in message.content:
+            return
+
+        id_match = re.search(r"\b(\d{17,20})\b", message.content)
+        if not id_match:
+            await message.channel.send("⚠️ Green couldn't find a message ID in Pink's trigger.")
+            return
+
+        log_msg_id = int(id_match.group(1))
+        try:
+            log_msg = await message.channel.fetch_message(log_msg_id)
+        except discord.NotFound:
+            await message.channel.send(f"⚠️ Couldn't find message `{log_msg_id}` in this channel.")
+            return
+
+        await process_log_message(self.client, log_msg, message, is_interaction=False)
+
+    @app_commands.command(name="update", description="Manually update the sheet from a log message ID.")
+    @app_commands.guilds(discord.Object(id=GUILD_ID))
+    async def update(self, interaction: discord.Interaction, message_id: str, channel_id: str = None):
+        await interaction.response.defer(ephemeral=True)
+
+        if channel_id:
+            channel = self.client.get_channel(int(channel_id))
+        else:
+            channel = self.client.get_channel(STATS_CHANNEL_ID)
+
+        if not channel:
+            await interaction.followup.send("❌ Couldn't find that channel.", ephemeral=True)
+            return
+
+        try:
+            log_msg = await channel.fetch_message(int(message_id))
+        except discord.NotFound:
+            await interaction.followup.send(f"❌ Message `{message_id}` not found.", ephemeral=True)
+            return
+
+        await interaction.followup.send("✅ Log found — check the `#stats` channel for the preview.", ephemeral=True)
+        await process_log_message(self.client, log_msg, interaction, is_interaction=True)
+
+    @update.error
+    async def update_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.MissingPermissions):
+            await interaction.response.send_message("🔒 You don't have permission to use this command.", ephemeral=True)
+        else:
+            try:
+                await interaction.followup.send(f"⚠️ Something went wrong: `{error}`", ephemeral=True)
+            except:
+                await interaction.response.send_message(f"⚠️ Something went wrong: `{error}`", ephemeral=True)
+
+
+async def setup(client):
+    await client.add_cog(UpdateSheet(client))
