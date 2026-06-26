@@ -9,6 +9,7 @@ from utils_config import (
     CACHE_FILE,
     CACHE_GAMES_FILE,
     CACHE_ROLES_FILE,
+    GUILD_ID
 )
 
 
@@ -20,6 +21,8 @@ class ReloadCaches(commands.Cog):
         name="reload_caches",
         description="Delete local cache files and rebuild them with updated data."
     )
+    @app_commands.guilds(discord.Object(id=GUILD_ID))
+
     async def reload_caches(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
