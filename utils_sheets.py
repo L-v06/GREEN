@@ -221,7 +221,7 @@ def _fetch_player_stats(nome: str) -> dict:
     time.sleep(2)
 
     dados        = pagina.get("A1:J55")
-    dados_roles  = pagina.get("A24:AJ25")
+    dados_roles  = pagina.get("A24:AK25")
     dados_extras = pagina.get("C58:H70")  # cobre todos os extrair_pares de uma vez
     time.sleep(1)
 
